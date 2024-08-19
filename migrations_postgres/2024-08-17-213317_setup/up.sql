@@ -1,0 +1,18 @@
+CREATE TABLE invoices (
+    id BIGSERIAL PRIMARY KEY,
+    payment_hash BYTEA NOT NULL UNIQUE,
+    preimage BYTEA,
+    bolt11 TEXT NOT NULL,
+    state TEXT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE htlcs (
+    id BIGSERIAL PRIMARY KEY,
+    invoice_id BIGSERIAL REFERENCES invoices (id),
+    state TEXT NOT NULL,
+    scid TEXT NOT NULL,
+    channel_id BIGINT NOT NULL,
+    msat BIGINT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
