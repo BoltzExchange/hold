@@ -71,6 +71,12 @@ impl HoldInvoice {
             .reduce(|acc, amt| acc + amt)
             .unwrap_or(0) as u64
     }
+
+    pub fn htlc_is_known(&self, scid: &str, id: u64) -> bool {
+        self.htlcs
+            .iter()
+            .any(|htlc| htlc.scid == scid && htlc.channel_id == id as i64)
+    }
 }
 
 #[derive(Queryable, Identifiable, Selectable, AsChangeset, Serialize, Debug, PartialEq, Clone)]

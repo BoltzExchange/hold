@@ -4,7 +4,7 @@ use crate::hooks::{FailureMessage, HtlcCallbackRequest, HtlcCallbackResponse};
 use crate::settler::{Resolver, Settler};
 use anyhow::Result;
 use lightning_invoice::Bolt11Invoice;
-use log::{debug, error, warn};
+use log::{debug, error, info, warn};
 use std::str::FromStr;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -59,17 +59,17 @@ where
             }
         };
 
-        // TODO: handle known htlcs
-
-        /*
-        if invoice.htlcs.is_known(htlc):
-            self.handle_known_htlc(
-                invoice,
-                invoice.htlcs.find_htlc(htlc.short_channel_id, htlc.channel_id),
-                request,
-            )
-            return
-         */
+        if invoice.htlc_is_known(&args.htlc.short_channel_id, args.htlc.id) {
+            info!(
+                "Found already accepted HTLC {}:{} for {}",
+                args.htlc.short_channel_id,
+                args.htlc.id,
+                hex::encode(invoice.invoice.payment_hash.clone())
+            );
+            return Ok(Resolution::Resolver(
+                self.settler.add_htlc(&invoice.invoice.payment_hash).await,
+            ));
+        }
 
         if invoice.invoice.state != InvoiceState::Unpaid.to_string() {
             return self.reject_htlc(

@@ -1,6 +1,6 @@
 use crate::commands::structs::{parse_args, FromArr, ParamsError};
 use crate::database::helpers::invoice_helper::InvoiceHelper;
-use crate::database::model::{HoldInvoice, Htlc, Invoice};
+use crate::database::model::{HoldInvoice, Htlc};
 use crate::State;
 use cln_plugin::Plugin;
 use lightning_invoice::Bolt11Invoice;
@@ -35,38 +35,25 @@ impl FromArr for ListInvoicesRequest {
 }
 
 #[derive(Debug, Serialize)]
-struct PrettyInvoice {
+struct PrettyHoldInvoice {
     pub id: i64,
     pub payment_hash: String,
     pub preimage: Option<String>,
     pub bolt11: String,
     pub state: String,
     pub created_at: chrono::NaiveDateTime,
-}
-
-impl From<Invoice> for PrettyInvoice {
-    fn from(value: Invoice) -> Self {
-        PrettyInvoice {
-            id: value.id,
-            payment_hash: hex::encode(value.payment_hash),
-            preimage: value.preimage.map(hex::encode),
-            bolt11: value.bolt11.clone(),
-            state: value.state.clone(),
-            created_at: value.created_at,
-        }
-    }
-}
-
-#[derive(Debug, Serialize)]
-struct PrettyHoldInvoice {
-    pub invoice: PrettyInvoice,
     pub htlcs: Vec<Htlc>,
 }
 
 impl From<HoldInvoice> for PrettyHoldInvoice {
     fn from(value: HoldInvoice) -> Self {
         PrettyHoldInvoice {
-            invoice: value.invoice.into(),
+            id: value.invoice.id,
+            payment_hash: hex::encode(value.invoice.payment_hash),
+            preimage: value.invoice.preimage.map(hex::encode),
+            bolt11: value.invoice.bolt11.clone(),
+            state: value.invoice.state.clone(),
+            created_at: value.invoice.created_at,
             htlcs: value.htlcs.clone(),
         }
     }
