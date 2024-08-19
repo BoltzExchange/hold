@@ -3,7 +3,7 @@ use crate::encoder::Encoder;
 use crate::handler::Handler;
 use crate::settler::Settler;
 use anyhow::Result;
-use cln_plugin::Builder;
+use cln_plugin::{Builder, RpcMethodBuilder};
 use log::{debug, error};
 
 mod commands;
@@ -28,10 +28,9 @@ struct State<T> {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // TODO: what should be used here instead?
     std::env::set_var(
         "CLN_PLUGIN_LOG",
-        "cln_plugin=debug,hold=trace,debug,info,warn,error",
+        "cln_plugin=trace,hold=trace,debug,info,warn,error",
     );
 
     debug!("Starting plugin");
@@ -43,25 +42,25 @@ async fn main() -> Result<()> {
         .option(OPTION_GRPC_HOST)
         .option(OPTION_GRPC_PORT)
         .hook("htlc_accepted", hooks::htlc_accepted)
-        .rpcmethod(
-            "listholdinvoices",
-            "Lists hold invoices",
-            commands::list_invoices,
+        .rpcmethod_from_builder(
+            RpcMethodBuilder::new("listholdinvoices", commands::list_invoices)
+                .description("Lists hold invoices")
+                .usage("[payment_hash] [bolt11]"),
         )
-        .rpcmethod(
-            "holdinvoice",
-            "Creates a new hold invoice",
-            commands::invoice,
+        .rpcmethod_from_builder(
+            RpcMethodBuilder::new("holdinvoice", commands::invoice)
+                .description("Creates a new hold invoice")
+                .usage("payment_hash amount"),
         )
-        .rpcmethod(
-            "settleholdinvoice",
-            "Settles a hold invoice",
-            commands::settle,
+        .rpcmethod_from_builder(
+            RpcMethodBuilder::new("settleholdinvoice", commands::settle)
+                .description("Settles a hold invoice")
+                .usage("preimage"),
         )
-        .rpcmethod(
-            "cancelholdinvoice",
-            "Cancels a hold invoice",
-            commands::cancel,
+        .rpcmethod_from_builder(
+            RpcMethodBuilder::new("cancelholdinvoice", commands::cancel)
+                .description("Cancels a hold invoice")
+                .usage("payment_hash"),
         )
         .configure()
         .await?
