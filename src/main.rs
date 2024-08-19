@@ -126,10 +126,10 @@ async fn main() -> Result<()> {
 
     let plugin = plugin
         .start(State {
-            encoder,
+            encoder: encoder.clone(),
+            settler: settler.clone(),
             invoice_helper: invoice_helper.clone(),
-            handler: Handler::new(invoice_helper, settler.clone()),
-            settler,
+            handler: Handler::new(invoice_helper.clone(), settler.clone()),
         })
         .await?;
 
@@ -137,6 +137,9 @@ async fn main() -> Result<()> {
         &grpc_host,
         grpc_port,
         std::env::current_dir()?.join(utils::built_info::PKG_NAME),
+        invoice_helper,
+        encoder,
+        settler,
     );
 
     tokio::select! {

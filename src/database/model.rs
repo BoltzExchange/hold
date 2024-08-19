@@ -1,6 +1,7 @@
 use diesel::internal::derives::multiconnection::chrono;
 use diesel::{AsChangeset, Associations, Identifiable, Insertable, Queryable, Selectable};
 use serde::Serialize;
+use std::fmt::{Display, Formatter};
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum InvoiceState {
@@ -10,9 +11,15 @@ pub enum InvoiceState {
     Cancelled = 3,
 }
 
+impl Display for InvoiceState {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(Into::<String>::into(*self).as_str())
+    }
+}
+
 impl InvoiceState {
-    pub fn to_string(self) -> String {
-        Into::<String>::into(self)
+    pub fn is_final(&self) -> bool {
+        *self == InvoiceState::Paid || *self == InvoiceState::Cancelled
     }
 }
 

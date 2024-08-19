@@ -11,10 +11,11 @@ pub trait InvoiceHelper {
     fn insert(&self, invoice: &InvoiceInsertable) -> Result<usize>;
     fn insert_htlc(&self, htlc: &HtlcInsertable) -> Result<usize>;
     fn set_invoice_state(&self, id: i64, state: InvoiceState) -> Result<usize>;
-    fn set_invoice_preimage(&self, id: i64, preimage: &Vec<u8>) -> Result<usize>;
+    fn set_invoice_preimage(&self, id: i64, preimage: &[u8]) -> Result<usize>;
     fn set_htlc_states_by_invoice(&self, invoice_id: i64, state: InvoiceState) -> Result<usize>;
     fn get_all(&self) -> Result<Vec<HoldInvoice>>;
-    fn get_by_payment_hash(&self, payment_hash: &Vec<u8>) -> Result<Option<HoldInvoice>>;
+    fn get_paginated(&self, index_start: i64, limit: u64) -> Result<Vec<HoldInvoice>>;
+    fn get_by_payment_hash(&self, payment_hash: &[u8]) -> Result<Option<HoldInvoice>>;
 }
 
 #[derive(Clone, Debug)]
@@ -48,7 +49,7 @@ impl InvoiceHelper for InvoiceHelperDatabase {
             .execute(&mut self.pool.get()?)?)
     }
 
-    fn set_invoice_preimage(&self, id: i64, preimage: &Vec<u8>) -> Result<usize> {
+    fn set_invoice_preimage(&self, id: i64, preimage: &[u8]) -> Result<usize> {
         Ok(update(invoices::dsl::invoices)
             .filter(invoices::dsl::id.eq(id))
             .set(invoices::dsl::preimage.eq(preimage))
@@ -80,7 +81,28 @@ impl InvoiceHelper for InvoiceHelperDatabase {
             .collect())
     }
 
-    fn get_by_payment_hash(&self, payment_hash: &Vec<u8>) -> Result<Option<HoldInvoice>> {
+    fn get_paginated(&self, index_start: i64, limit: u64) -> Result<Vec<HoldInvoice>> {
+        let mut con = self.pool.get()?;
+
+        let invoices = invoices::dsl::invoices
+            .select(Invoice::as_select())
+            .filter(invoices::dsl::id.ge(index_start))
+            .order_by(invoices::dsl::id.desc())
+            .limit(limit as i64)
+            .load(&mut con)?;
+        let htlcs = Htlc::belonging_to(&invoices)
+            .select(Htlc::as_select())
+            .load(&mut con)?;
+
+        Ok(htlcs
+            .grouped_by(&invoices)
+            .into_iter()
+            .zip(invoices)
+            .map(|(htlcs, invoice)| HoldInvoice::new(invoice, htlcs))
+            .collect())
+    }
+
+    fn get_by_payment_hash(&self, payment_hash: &[u8]) -> Result<Option<HoldInvoice>> {
         let mut con = self.pool.get()?;
 
         let invoices = invoices::dsl::invoices

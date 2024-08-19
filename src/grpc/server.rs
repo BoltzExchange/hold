@@ -1,6 +1,9 @@
+use crate::database::helpers::invoice_helper::InvoiceHelper;
+use crate::encoder::Encoder;
 use crate::grpc::service::hold::hold_server::HoldServer;
 use crate::grpc::service::HoldService;
 use crate::grpc::tls::load_certificates;
+use crate::settler::Settler;
 use anyhow::Result;
 use log::info;
 use std::net::{IpAddr, SocketAddr};
@@ -8,17 +11,34 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use tonic::transport::ServerTlsConfig;
 
-pub struct Server {
+pub struct Server<T> {
     host: String,
     port: i64,
     directory: PathBuf,
+
+    encoder: Encoder,
+    invoice_helper: T,
+    settler: Settler<T>,
 }
 
-impl Server {
-    pub fn new(host: &str, port: i64, directory: PathBuf) -> Self {
+impl<T> Server<T>
+where
+    T: InvoiceHelper + Sync + Send + Clone + 'static,
+{
+    pub fn new(
+        host: &str,
+        port: i64,
+        directory: PathBuf,
+        invoice_helper: T,
+        encoder: Encoder,
+        settler: Settler<T>,
+    ) -> Self {
         Self {
             port,
+            settler,
+            encoder,
             directory,
+            invoice_helper,
             host: host.to_string(),
         }
     }
@@ -36,7 +56,11 @@ impl Server {
         )?;
 
         Ok(server
-            .add_service(HoldServer::new(HoldService {}))
+            .add_service(HoldServer::new(HoldService::new(
+                self.invoice_helper.clone(),
+                self.encoder.clone(),
+                self.settler.clone(),
+            )))
             .serve(socket_addr)
             .await?)
     }

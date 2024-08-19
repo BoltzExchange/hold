@@ -56,6 +56,7 @@ impl InvoiceBuilder {
         }
     }
 
+    #[allow(dead_code)]
     pub fn payment_secret(mut self, secret: &[u8]) -> Self {
         self.payment_secret = Some(secret.to_vec());
         self

@@ -4,7 +4,7 @@ use crate::hooks::{FailureMessage, HtlcCallbackRequest, HtlcCallbackResponse};
 use crate::settler::{Resolver, Settler};
 use anyhow::Result;
 use lightning_invoice::Bolt11Invoice;
-use log::{debug, error, info, warn};
+use log::{debug, error, warn};
 use std::str::FromStr;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -143,13 +143,8 @@ where
             ))?;
 
         if amount_paid >= invoice_decoded.amount_milli_satoshis().unwrap_or(0) {
-            info!(
-                "Accepted hold invoice {} with {} HTLCs",
-                hex::encode(invoice.invoice.payment_hash.clone()),
-                invoice.htlcs.len() + 1
-            );
-            self.invoice_helper
-                .set_invoice_state(invoice.invoice.id, InvoiceState::Accepted)?;
+            self.settler
+                .set_accepted(&invoice.invoice, invoice.htlcs.len() + 1)?;
         }
 
         Ok(Resolution::Resolver(
@@ -175,8 +170,8 @@ where
         self.invoice_helper
             .insert_htlc(&Self::create_htlc_insertable(
                 InvoiceState::Cancelled,
-                &invoice,
-                &args,
+                invoice,
+                args,
             ))?;
 
         Ok(Resolution::Resolution(HtlcCallbackResponse::Fail {

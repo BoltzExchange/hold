@@ -1,5 +1,5 @@
 use crate::database::helpers::invoice_helper::InvoiceHelper;
-use crate::database::model::InvoiceState;
+use crate::database::model::{Invoice, InvoiceState};
 use crate::hooks::{FailureMessage, HtlcCallbackResponse};
 use anyhow::Result;
 use log::info;
@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 use std::sync::Arc;
-use tokio::sync::{oneshot, Mutex};
+use tokio::sync::{broadcast, oneshot, Mutex};
 
 pub type Resolver = oneshot::Receiver<HtlcCallbackResponse>;
 type ResolverSender = oneshot::Sender<HtlcCallbackResponse>;
@@ -36,8 +36,16 @@ impl Display for SettleError {
 impl Error for SettleError {}
 
 #[derive(Debug, Clone)]
+pub struct StateUpdate {
+    pub payment_hash: Vec<u8>,
+    pub bolt11: String,
+    pub state: InvoiceState,
+}
+
+#[derive(Debug, Clone)]
 pub struct Settler<T> {
     invoice_helper: T,
+    state_tx: broadcast::Sender<StateUpdate>,
     pending_htlcs: Arc<Mutex<HashMap<Vec<u8>, Vec<ResolverSender>>>>,
 }
 
@@ -46,10 +54,33 @@ where
     T: InvoiceHelper + Sync + Send + Clone,
 {
     pub fn new(invoice_helper: T) -> Self {
+        let (state_tx, _) = broadcast::channel(128);
         Settler {
+            state_tx,
             invoice_helper,
             pending_htlcs: Arc::new(Mutex::new(HashMap::new())),
         }
+    }
+
+    pub fn state_rx(&self) -> broadcast::Receiver<StateUpdate> {
+        self.state_tx.subscribe()
+    }
+
+    pub fn set_accepted(&self, invoice: &Invoice, num_htlcs: usize) -> Result<()> {
+        info!(
+            "Accepted hold invoice {} with {} HTLCs",
+            hex::encode(invoice.payment_hash.clone()),
+            num_htlcs
+        );
+        self.invoice_helper
+            .set_invoice_state(invoice.id, InvoiceState::Accepted)?;
+        self.state_tx.send(StateUpdate {
+            state: InvoiceState::Paid,
+            bolt11: invoice.bolt11.clone(),
+            payment_hash: invoice.payment_hash.clone(),
+        })?;
+
+        Ok(())
     }
 
     pub async fn add_htlc(&mut self, payment_hash: &Vec<u8>) -> Resolver {
@@ -85,9 +116,14 @@ where
             });
         }
 
-        let invoice_id = self.update_database_states(payment_hash, InvoiceState::Paid)?;
+        let (invoice_id, bolt11) = self.update_database_states(payment_hash, InvoiceState::Paid)?;
         self.invoice_helper
             .set_invoice_preimage(invoice_id, payment_preimage)?;
+        self.state_tx.send(StateUpdate {
+            bolt11,
+            state: InvoiceState::Paid,
+            payment_hash: payment_hash.clone(),
+        })?;
         info!(
             "Resolved hold invoice {} with {} HTLCs",
             hex::encode(payment_hash),
@@ -110,7 +146,12 @@ where
             });
         }
 
-        self.update_database_states(payment_hash, InvoiceState::Cancelled)?;
+        let (_, bolt11) = self.update_database_states(payment_hash, InvoiceState::Cancelled)?;
+        self.state_tx.send(StateUpdate {
+            bolt11,
+            state: InvoiceState::Cancelled,
+            payment_hash: payment_hash.clone(),
+        })?;
         info!(
             "Cancelled hold invoice {} with {} HTLCs",
             hex::encode(payment_hash),
@@ -120,7 +161,11 @@ where
         Ok(())
     }
 
-    fn update_database_states(&self, payment_hash: &Vec<u8>, state: InvoiceState) -> Result<i64> {
+    fn update_database_states(
+        &self,
+        payment_hash: &[u8],
+        state: InvoiceState,
+    ) -> Result<(i64, String)> {
         let invoice = match self.invoice_helper.get_by_payment_hash(payment_hash) {
             Ok(opt) => match opt {
                 Some(invoice) => invoice,
@@ -143,6 +188,6 @@ where
             return Err(SettleError::DatabaseUpdateError(err).into());
         }
 
-        Ok(invoice.invoice.id)
+        Ok((invoice.invoice.id, invoice.invoice.bolt11))
     }
 }
