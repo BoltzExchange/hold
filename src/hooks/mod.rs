@@ -22,7 +22,7 @@ pub struct Onion {
     pub type_field: String,
     pub forward_msat: u64,
     pub outgoing_cltv_value: u64,
-    pub total_msat: u64,
+    pub total_msat: Option<u64>,
     pub next_onion: String,
     pub shared_secret: Option<String>,
     pub payment_secret: Option<String>,

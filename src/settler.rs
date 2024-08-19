@@ -2,12 +2,17 @@ use crate::database::helpers::invoice_helper::InvoiceHelper;
 use crate::database::model::{Invoice, InvoiceState};
 use crate::hooks::{FailureMessage, HtlcCallbackResponse};
 use anyhow::Result;
-use log::info;
+use log::{info, trace, warn};
 use std::collections::HashMap;
 use std::error::Error;
 use std::fmt::{Display, Formatter};
+use std::ops::Sub;
 use std::sync::Arc;
+use std::time::{Duration, SystemTime};
 use tokio::sync::{broadcast, oneshot, Mutex};
+use tokio::time;
+
+const MPP_INTERVAL_SECONDS: u64 = 15;
 
 pub type Resolver = oneshot::Receiver<HtlcCallbackResponse>;
 type ResolverSender = oneshot::Sender<HtlcCallbackResponse>;
@@ -35,6 +40,14 @@ impl Display for SettleError {
 
 impl Error for SettleError {}
 
+#[derive(Debug)]
+pub struct PendingHtlc {
+    scid: String,
+    channel_id: u64,
+    sender: ResolverSender,
+    time: SystemTime,
+}
+
 #[derive(Debug, Clone)]
 pub struct StateUpdate {
     pub payment_hash: Vec<u8>,
@@ -45,19 +58,21 @@ pub struct StateUpdate {
 #[derive(Debug, Clone)]
 pub struct Settler<T> {
     invoice_helper: T,
+    mpp_timeout: Duration,
     state_tx: broadcast::Sender<StateUpdate>,
-    pending_htlcs: Arc<Mutex<HashMap<Vec<u8>, Vec<ResolverSender>>>>,
+    pending_htlcs: Arc<Mutex<HashMap<Vec<u8>, Vec<PendingHtlc>>>>,
 }
 
 impl<T> Settler<T>
 where
     T: InvoiceHelper + Sync + Send + Clone,
 {
-    pub fn new(invoice_helper: T) -> Self {
+    pub fn new(invoice_helper: T, mpp_timeout: u64) -> Self {
         let (state_tx, _) = broadcast::channel(128);
         Settler {
             state_tx,
             invoice_helper,
+            mpp_timeout: Duration::from_secs(mpp_timeout),
             pending_htlcs: Arc::new(Mutex::new(HashMap::new())),
         }
     }
@@ -83,14 +98,26 @@ where
         Ok(())
     }
 
-    pub async fn add_htlc(&mut self, payment_hash: &Vec<u8>) -> Resolver {
+    pub async fn add_htlc(
+        &mut self,
+        payment_hash: &Vec<u8>,
+        scid: String,
+        channel_id: u64,
+    ) -> Resolver {
         let (tx, rx) = oneshot::channel::<HtlcCallbackResponse>();
         let mut htlcs = self.pending_htlcs.lock().await;
 
+        let pending = PendingHtlc {
+            scid,
+            channel_id,
+            sender: tx,
+            time: SystemTime::now(),
+        };
+
         if let Some(existing) = htlcs.get_mut(payment_hash) {
-            existing.push(tx);
+            existing.push(pending);
         } else {
-            htlcs.insert(payment_hash.clone(), vec![tx]);
+            htlcs.insert(payment_hash.clone(), vec![pending]);
         }
 
         rx
@@ -111,7 +138,7 @@ where
 
         let preimage_hex = hex::encode(payment_preimage);
         for htlc in htlcs {
-            let _ = htlc.send(HtlcCallbackResponse::Resolve {
+            let _ = htlc.sender.send(HtlcCallbackResponse::Resolve {
                 payment_key: preimage_hex.clone(),
             });
         }
@@ -141,7 +168,7 @@ where
         let htlc_count = htlcs.len();
 
         for htlc in htlcs {
-            let _ = htlc.send(HtlcCallbackResponse::Fail {
+            let _ = htlc.sender.send(HtlcCallbackResponse::Fail {
                 failure_message: FailureMessage::IncorrectPaymentDetails,
             });
         }
@@ -159,6 +186,106 @@ where
         );
 
         Ok(())
+    }
+
+    pub async fn mpp_timeout_loop(&mut self) {
+        info!(
+            "Checking for MPP timeouts every {} seconds",
+            MPP_INTERVAL_SECONDS
+        );
+        let mut interval = time::interval(Duration::from_secs(MPP_INTERVAL_SECONDS));
+
+        loop {
+            interval.tick().await;
+            trace!("Checking for MPP timeouts");
+
+            let now = SystemTime::now();
+
+            for (payment_hash, pending) in self.pending_htlcs.lock().await.iter_mut() {
+                let invoice = match self.invoice_helper.get_by_payment_hash(payment_hash) {
+                    Ok(invoice) => match invoice {
+                        Some(invoice) => invoice,
+                        None => {
+                            warn!(
+                                "Not database entry found for invoice: {}",
+                                hex::encode(payment_hash)
+                            );
+                            continue;
+                        }
+                    },
+                    Err(err) => {
+                        warn!("Could not fetch invoice: {}", err);
+                        continue;
+                    }
+                };
+
+                if invoice.invoice.state == InvoiceState::Accepted.to_string() {
+                    continue;
+                }
+
+                for i in (0..pending.len()).rev() {
+                    let htlc = &pending[i];
+                    let since_accepted = match now.duration_since(htlc.time) {
+                        Ok(since) => since,
+                        Err(err) => {
+                            warn!("Could not compare time since HTLC was accepted: {}", err);
+                            continue;
+                        }
+                    };
+
+                    if since_accepted < self.mpp_timeout {
+                        trace!(
+                            "Cancelling payment part {}:{} of {} with MPP timeout in {:?}",
+                            htlc.scid,
+                            htlc.channel_id,
+                            hex::encode(payment_hash),
+                            self.mpp_timeout.sub(since_accepted)
+                        );
+                        continue;
+                    }
+
+                    let htlc = pending.remove(i);
+                    let _ = htlc.sender.send(HtlcCallbackResponse::Fail {
+                        failure_message: FailureMessage::MppTimeout,
+                    });
+                    let htlc_db = match invoice
+                        .htlcs
+                        .iter()
+                        .find(|h| h.scid == htlc.scid && h.channel_id as u64 == htlc.channel_id)
+                    {
+                        Some(htlc) => htlc,
+                        None => {
+                            warn!(
+                                "Could not find HTLC {}:{} of {} in database",
+                                htlc.scid,
+                                htlc.channel_id,
+                                hex::encode(payment_hash)
+                            );
+                            continue;
+                        }
+                    };
+
+                    if let Err(err) = self
+                        .invoice_helper
+                        .set_htlc_state_by_id(htlc_db.id, InvoiceState::Cancelled)
+                    {
+                        warn!(
+                            "Could not update database state of HTLC of {}: {}",
+                            hex::encode(payment_hash),
+                            err
+                        );
+                        continue;
+                    };
+
+                    info!(
+                        "Cancelled payment part {}:{} of {} with MPP timeout",
+                        htlc.scid,
+                        htlc.channel_id,
+                        hex::encode(payment_hash)
+                    );
+                }
+            }
+        }
     }
 
     fn update_database_states(

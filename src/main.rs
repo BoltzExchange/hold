@@ -1,10 +1,10 @@
-use crate::config::{OPTION_DATABASE, OPTION_GRPC_HOST, OPTION_GRPC_PORT};
+use crate::config::{OPTION_DATABASE, OPTION_GRPC_HOST, OPTION_GRPC_PORT, OPTION_MPP_TIMEOUT};
 use crate::encoder::Encoder;
 use crate::handler::Handler;
 use crate::settler::Settler;
 use anyhow::Result;
 use cln_plugin::{Builder, RpcMethodBuilder};
-use log::{debug, error};
+use log::{debug, error, info};
 
 mod commands;
 mod config;
@@ -35,10 +35,10 @@ async fn main() -> Result<()> {
 
     debug!("Starting plugin");
 
-    // TODO: graceful shutdown
     let plugin = match Builder::new(tokio::io::stdin(), tokio::io::stdout())
         .dynamic()
         .option(OPTION_DATABASE)
+        .option(OPTION_MPP_TIMEOUT)
         .option(OPTION_GRPC_HOST)
         .option(OPTION_GRPC_PORT)
         .hook("htlc_accepted", hooks::htlc_accepted)
@@ -74,6 +74,23 @@ async fn main() -> Result<()> {
         Err(err) => {
             plugin
                 .disable(format!("invalid database URL: {}", err).as_str())
+                .await?;
+            return Ok(());
+        }
+    };
+
+    let mpp_timeout = match plugin.option(&OPTION_MPP_TIMEOUT) {
+        Ok(timeout) => {
+            if timeout < 0 {
+                plugin.disable("MPP timeout has to be positive").await?;
+                return Ok(());
+            }
+
+            timeout as u64
+        }
+        Err(err) => {
+            plugin
+                .disable(format!("invalid MPP timeout: {}", err).as_str())
                 .await?;
             return Ok(());
         }
@@ -121,7 +138,7 @@ async fn main() -> Result<()> {
     };
 
     let invoice_helper = database::helpers::invoice_helper::InvoiceHelperDatabase::new(db);
-    let settler = Settler::new(invoice_helper.clone());
+    let mut settler = Settler::new(invoice_helper.clone(), mpp_timeout);
 
     let plugin = plugin
         .start(State {
@@ -138,8 +155,12 @@ async fn main() -> Result<()> {
         std::env::current_dir()?.join(utils::built_info::PKG_NAME),
         invoice_helper,
         encoder,
-        settler,
+        settler.clone(),
     );
+
+    tokio::spawn(async move {
+        settler.mpp_timeout_loop().await;
+    });
 
     tokio::select! {
         _ = plugin.join() => {
@@ -152,5 +173,6 @@ async fn main() -> Result<()> {
         }
     }
 
+    info!("Stopped plugin");
     Ok(())
 }

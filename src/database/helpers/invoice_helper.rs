@@ -12,6 +12,7 @@ pub trait InvoiceHelper {
     fn insert_htlc(&self, htlc: &HtlcInsertable) -> Result<usize>;
     fn set_invoice_state(&self, id: i64, state: InvoiceState) -> Result<usize>;
     fn set_invoice_preimage(&self, id: i64, preimage: &[u8]) -> Result<usize>;
+    fn set_htlc_state_by_id(&self, htlc_id: i64, state: InvoiceState) -> Result<usize>;
     fn set_htlc_states_by_invoice(&self, invoice_id: i64, state: InvoiceState) -> Result<usize>;
     fn get_all(&self) -> Result<Vec<HoldInvoice>>;
     fn get_paginated(&self, index_start: i64, limit: u64) -> Result<Vec<HoldInvoice>>;
@@ -53,6 +54,13 @@ impl InvoiceHelper for InvoiceHelperDatabase {
         Ok(update(invoices::dsl::invoices)
             .filter(invoices::dsl::id.eq(id))
             .set(invoices::dsl::preimage.eq(preimage))
+            .execute(&mut self.pool.get()?)?)
+    }
+
+    fn set_htlc_state_by_id(&self, htlc_id: i64, state: InvoiceState) -> Result<usize> {
+        Ok(update(htlcs::dsl::htlcs)
+            .filter(htlcs::dsl::id.eq(htlc_id))
+            .set(htlcs::dsl::state.eq(state.to_string()))
             .execute(&mut self.pool.get()?)?)
     }
 

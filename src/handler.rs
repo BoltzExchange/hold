@@ -9,8 +9,6 @@ use std::str::FromStr;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-// TODO: mpp timeouts
-
 const OVERPAYMENT_FACTOR: u64 = 2;
 
 pub enum Resolution {
@@ -67,7 +65,13 @@ where
                 hex::encode(invoice.invoice.payment_hash.clone())
             );
             return Ok(Resolution::Resolver(
-                self.settler.add_htlc(&invoice.invoice.payment_hash).await,
+                self.settler
+                    .add_htlc(
+                        &invoice.invoice.payment_hash,
+                        args.htlc.short_channel_id.clone(),
+                        args.htlc.id,
+                    )
+                    .await,
             ));
         }
 
@@ -148,7 +152,13 @@ where
         }
 
         Ok(Resolution::Resolver(
-            self.settler.add_htlc(&invoice.invoice.payment_hash).await,
+            self.settler
+                .add_htlc(
+                    &invoice.invoice.payment_hash,
+                    args.htlc.short_channel_id,
+                    args.htlc.id,
+                )
+                .await,
         ))
     }
 

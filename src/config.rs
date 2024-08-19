@@ -7,6 +7,13 @@ pub const OPTION_DATABASE: options::DefaultStringConfigOption =
         "hold database",
     );
 
+pub const OPTION_MPP_TIMEOUT: options::DefaultIntegerConfigOption =
+    options::ConfigOption::new_i64_with_default(
+        "hold-mpp-timeout",
+        60,
+        "hold MPP timeout in seconds",
+    );
+
 pub const OPTION_GRPC_HOST: options::DefaultStringConfigOption =
     options::ConfigOption::new_str_with_default("hold-grpc-host", "127.0.0.1", "hold gRPC host");
 
