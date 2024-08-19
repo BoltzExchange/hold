@@ -74,11 +74,11 @@ where
         );
         self.invoice_helper
             .set_invoice_state(invoice.id, InvoiceState::Accepted)?;
-        self.state_tx.send(StateUpdate {
+        let _ = self.state_tx.send(StateUpdate {
             state: InvoiceState::Paid,
             bolt11: invoice.bolt11.clone(),
             payment_hash: invoice.payment_hash.clone(),
-        })?;
+        });
 
         Ok(())
     }
@@ -119,11 +119,11 @@ where
         let (invoice_id, bolt11) = self.update_database_states(payment_hash, InvoiceState::Paid)?;
         self.invoice_helper
             .set_invoice_preimage(invoice_id, payment_preimage)?;
-        self.state_tx.send(StateUpdate {
+        let _ = self.state_tx.send(StateUpdate {
             bolt11,
             state: InvoiceState::Paid,
             payment_hash: payment_hash.clone(),
-        })?;
+        });
         info!(
             "Resolved hold invoice {} with {} HTLCs",
             hex::encode(payment_hash),
@@ -147,11 +147,11 @@ where
         }
 
         let (_, bolt11) = self.update_database_states(payment_hash, InvoiceState::Cancelled)?;
-        self.state_tx.send(StateUpdate {
+        let _ = self.state_tx.send(StateUpdate {
             bolt11,
             state: InvoiceState::Cancelled,
             payment_hash: payment_hash.clone(),
-        })?;
+        });
         info!(
             "Cancelled hold invoice {} with {} HTLCs",
             hex::encode(payment_hash),
