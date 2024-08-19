@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package hold;
+
+service Hold {
+  rpc GetInfo (GetInfoRequest) returns (GetInfoResponse);
+}
+
+message GetInfoRequest {}
+message GetInfoResponse {
+  string version = 1;
+}
