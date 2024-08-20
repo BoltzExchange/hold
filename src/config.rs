@@ -3,7 +3,7 @@ use cln_plugin::options;
 pub const OPTION_DATABASE: options::DefaultStringConfigOption =
     options::ConfigOption::new_str_with_default(
         "hold-database",
-        "sqlite://./hold/hold.sqlite",
+        "sqlite://./hold/hold.sqlite3",
         "hold database",
     );
 

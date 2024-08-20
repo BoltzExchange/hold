@@ -28,7 +28,7 @@ pub fn load_certificates(base_path: PathBuf) -> Result<(Identity, Certificate)> 
         generate_or_load_certificate("Hold gRPC server", base, "server", Some(ca))?;
     generate_or_load_certificate("Hold gRPC client", base, "client", Some(ca))?;
 
-    trace!("Loaded certificates");
+    debug!("Loaded certificates");
     Ok((
         Identity::from_pem(server_cert, server_key),
         Certificate::from_pem(ca_cert),

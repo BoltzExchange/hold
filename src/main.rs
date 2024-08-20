@@ -5,6 +5,8 @@ use crate::settler::Settler;
 use anyhow::Result;
 use cln_plugin::{Builder, RpcMethodBuilder};
 use log::{debug, error, info};
+use std::fs;
+use std::path::Path;
 use tokio_util::sync::CancellationToken;
 
 mod commands;
@@ -117,6 +119,13 @@ async fn main() -> Result<()> {
         }
     };
 
+    let config = plugin.configuration();
+
+    let plugin_dir = Path::new(config.lightning_dir.as_str()).join("hold");
+    if !plugin_dir.exists() {
+        fs::create_dir(plugin_dir)?;
+    }
+
     let db = match database::connect(&db_url) {
         Ok(db) => db,
         Err(err) => {
@@ -127,7 +136,6 @@ async fn main() -> Result<()> {
         }
     };
 
-    let config = plugin.configuration();
     let encoder = match Encoder::new(&config.rpc_file, &config.network).await {
         Ok(res) => res,
         Err(err) => {
