@@ -1,5 +1,6 @@
 use crate::commands::structs::{parse_args, FromArr, ParamsError};
 use crate::database::helpers::invoice_helper::InvoiceHelper;
+use crate::encoder::InvoiceEncoder;
 use crate::State;
 use bitcoin::hashes::{sha256, Hash};
 use cln_plugin::Plugin;
@@ -26,9 +27,10 @@ impl FromArr for SettleRequest {
 #[derive(Debug, Serialize)]
 struct SettleResponse {}
 
-pub async fn settle<T>(plugin: Plugin<State<T>>, args: Value) -> anyhow::Result<Value>
+pub async fn settle<T, E>(plugin: Plugin<State<T, E>>, args: Value) -> anyhow::Result<Value>
 where
     T: InvoiceHelper + Sync + Send + Clone,
+    E: InvoiceEncoder + Sync + Send + Clone,
 {
     let params = parse_args::<SettleRequest>(args)?;
     let preimage = hex::decode(params.preimage)?;

@@ -1,7 +1,7 @@
 use crate::commands::structs::{parse_args, FromArr, ParamsError};
 use crate::database::helpers::invoice_helper::InvoiceHelper;
 use crate::database::model::{InvoiceInsertable, InvoiceState};
-use crate::encoder::InvoiceBuilder;
+use crate::encoder::{InvoiceBuilder, InvoiceEncoder};
 use crate::State;
 use anyhow::Result;
 use cln_plugin::Plugin;
@@ -34,9 +34,10 @@ struct InvoiceResponse {
     bolt11: String,
 }
 
-pub async fn invoice<T>(plugin: Plugin<State<T>>, args: Value) -> Result<Value>
+pub async fn invoice<T, E>(plugin: Plugin<State<T, E>>, args: Value) -> Result<Value>
 where
     T: InvoiceHelper + Sync + Send + Clone,
+    E: InvoiceEncoder + Sync + Send + Clone,
 {
     let params = parse_args::<InvoiceRequest>(args)?;
     let payment_hash = hex::decode(params.payment_hash)?;

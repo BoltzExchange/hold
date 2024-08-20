@@ -1,4 +1,5 @@
 use crate::database::helpers::invoice_helper::InvoiceHelper;
+use crate::encoder::InvoiceEncoder;
 use crate::handler::Resolution;
 use crate::State;
 use anyhow::Result;
@@ -15,7 +16,7 @@ pub struct HtlcCallbackRequest {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Deserialize)]
+#[derive(Default, Debug, Deserialize)]
 pub struct Onion {
     pub payload: String,
     #[serde(rename = "type")]
@@ -39,7 +40,7 @@ pub struct Htlc {
     pub payment_hash: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, PartialEq, Serialize)]
 pub enum FailureMessage {
     #[serde(rename = "0017")]
     MppTimeout,
@@ -47,7 +48,7 @@ pub enum FailureMessage {
     IncorrectPaymentDetails,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, PartialEq, Serialize)]
 #[serde(tag = "result")]
 pub enum HtlcCallbackResponse {
     #[serde(rename = "continue")]
@@ -58,9 +59,10 @@ pub enum HtlcCallbackResponse {
     Resolve { payment_key: String },
 }
 
-pub async fn htlc_accepted<T>(plugin: Plugin<State<T>>, request: Value) -> Result<Value>
+pub async fn htlc_accepted<T, E>(plugin: Plugin<State<T, E>>, request: Value) -> Result<Value>
 where
     T: InvoiceHelper + Sync + Send + Clone,
+    E: InvoiceEncoder + Sync + Send + Clone,
 {
     let args = match serde_json::from_value::<HtlcCallbackRequest>(request) {
         Ok(args) => args,

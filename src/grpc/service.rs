@@ -1,6 +1,6 @@
 use crate::database::helpers::invoice_helper::InvoiceHelper;
 use crate::database::model::{InvoiceInsertable, InvoiceState};
-use crate::encoder::{Encoder, InvoiceBuilder, InvoiceDescription};
+use crate::encoder::{InvoiceBuilder, InvoiceDescription, InvoiceEncoder};
 use crate::grpc::service::hold::hold_server::Hold;
 use crate::grpc::service::hold::invoice_request::Description;
 use crate::grpc::service::hold::list_request::Constraint;
@@ -23,17 +23,18 @@ pub mod hold {
     tonic::include_proto!("hold");
 }
 
-pub struct HoldService<T> {
-    encoder: Encoder,
+pub struct HoldService<T, E> {
+    encoder: E,
     invoice_helper: T,
     settler: Settler<T>,
 }
 
-impl<T> HoldService<T>
+impl<T, E> HoldService<T, E>
 where
     T: InvoiceHelper + Send + Sync + Clone + 'static,
+    E: InvoiceEncoder + Send + Sync + Clone + 'static,
 {
-    pub fn new(invoice_helper: T, encoder: Encoder, settler: Settler<T>) -> Self {
+    pub fn new(invoice_helper: T, encoder: E, settler: Settler<T>) -> Self {
         HoldService {
             encoder,
             settler,
@@ -43,9 +44,10 @@ where
 }
 
 #[async_trait]
-impl<T> Hold for HoldService<T>
+impl<T, E> Hold for HoldService<T, E>
 where
     T: InvoiceHelper + Send + Sync + Clone + 'static,
+    E: InvoiceEncoder + Send + Sync + Clone + 'static,
 {
     async fn get_info(
         &self,

@@ -11,6 +11,7 @@ use tokio::sync::Mutex;
 
 const OVERPAYMENT_FACTOR: u64 = 2;
 
+#[derive(Debug)]
 pub enum Resolution {
     Resolution(HtlcCallbackResponse),
     Resolver(Resolver),
@@ -201,5 +202,408 @@ where
             channel_id: args.htlc.id as i64,
             msat: args.htlc.amount_msat as i64,
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::database::helpers::invoice_helper::InvoiceHelper;
+    use crate::database::model::{
+        HoldInvoice, HtlcInsertable, Invoice, InvoiceInsertable, InvoiceState,
+    };
+    use crate::handler::{Handler, Resolution};
+    use crate::hooks::{FailureMessage, Htlc, HtlcCallbackRequest, HtlcCallbackResponse, Onion};
+    use crate::settler::Settler;
+    use anyhow::Result;
+    use lightning_invoice::Bolt11Invoice;
+    use mockall::mock;
+    use std::str::FromStr;
+
+    const INVOICE: &str = "lnbc10n1pnvfs4vsp57npt9tx2glnkx29ng98cmc0lt0as8se4x4776rtwqp3gr3hj807qpp5ysnte2hh3nv4z0jd4pfe5wla956zxxg3rmxs5ux4v0xfwplvlm8sdqdw3jhxar5v4ehgxqyjw5qcqpjrzjq2rnwvp7zt9cgeparuqcrqft2kd9dm6a0z6vg0gucrqurutaezrjyrze2uqq2wcqqyqqqqdyqqqqqpqqvs9qxpqysgqjkdwjjuzfy5ek4k9xgsv0ysrc3lg349caqqh3yearxmv4zgyqhqyuntk4gyjpvpezcc66v5lyzxm240wdfgp6cqkwt7fv2nngjjnlrspmaakpk";
+
+    mock! {
+        InvoiceHelper {}
+
+        impl Clone for InvoiceHelper {
+            fn clone(&self) -> Self;
+        }
+
+        impl InvoiceHelper for InvoiceHelper {
+            fn insert(&self, invoice: &InvoiceInsertable) -> Result<usize>;
+            fn insert_htlc(&self, htlc: &HtlcInsertable) -> Result<usize>;
+            fn set_invoice_state(&self, id: i64, state: InvoiceState) -> Result<usize>;
+            fn set_invoice_preimage(&self, id: i64, preimage: &[u8]) -> Result<usize>;
+            fn set_htlc_state_by_id(&self, htlc_id: i64, state: InvoiceState) -> Result<usize>;
+            fn set_htlc_states_by_invoice(&self, invoice_id: i64, state: InvoiceState) -> Result<usize>;
+            fn get_all(&self) -> Result<Vec<HoldInvoice>>;
+            fn get_paginated(&self, index_start: i64, limit: u64) -> Result<Vec<HoldInvoice>>;
+            fn get_by_payment_hash(&self, payment_hash: &[u8]) -> Result<Option<HoldInvoice>>;
+        }
+    }
+
+    #[tokio::test]
+    async fn no_invoice() {
+        let mut helper = MockInvoiceHelper::new();
+        helper.expect_get_by_payment_hash().returning(|_| Ok(None));
+
+        let mut handler = Handler::new(helper, Settler::new(MockInvoiceHelper::new(), 0));
+
+        let res = handler
+            .htlc_accepted(HtlcCallbackRequest {
+                onion: Onion::default(),
+                htlc: Htlc {
+                    short_channel_id: "".to_string(),
+                    id: 0,
+                    amount_msat: 0,
+                    cltv_expiry: 0,
+                    cltv_expiry_relative: 0,
+                    payment_hash: "00".to_string(),
+                },
+                forward_to: None,
+            })
+            .await;
+
+        match res {
+            Resolution::Resolution(res) => {
+                assert_eq!(res, HtlcCallbackResponse::Continue);
+            }
+            Resolution::Resolver(_) => {
+                assert!(false);
+            }
+        };
+    }
+
+    #[tokio::test]
+    async fn invoice_not_unpaid() {
+        let mut helper = MockInvoiceHelper::new();
+        helper.expect_get_by_payment_hash().returning(|_| {
+            Ok(Some(HoldInvoice {
+                invoice: Invoice {
+                    id: 0,
+                    payment_hash: vec![],
+                    preimage: None,
+                    bolt11: "".to_string(),
+                    state: InvoiceState::Paid.to_string(),
+                    created_at: Default::default(),
+                },
+                htlcs: vec![],
+            }))
+        });
+        helper.expect_insert_htlc().returning(|_| Ok(0));
+
+        let mut handler = Handler::new(helper, Settler::new(MockInvoiceHelper::new(), 0));
+
+        let res = handler
+            .htlc_accepted(HtlcCallbackRequest {
+                onion: Onion::default(),
+                htlc: Htlc {
+                    short_channel_id: "".to_string(),
+                    id: 0,
+                    amount_msat: 0,
+                    cltv_expiry: 0,
+                    cltv_expiry_relative: 0,
+                    payment_hash: "00".to_string(),
+                },
+                forward_to: None,
+            })
+            .await;
+
+        match res {
+            Resolution::Resolution(res) => {
+                assert_eq!(
+                    res,
+                    HtlcCallbackResponse::Fail {
+                        failure_message: FailureMessage::IncorrectPaymentDetails
+                    }
+                );
+            }
+            Resolution::Resolver(_) => {
+                assert!(false);
+            }
+        };
+    }
+
+    #[tokio::test]
+    async fn invoice_incorrect_payment_secret() {
+        let mut helper = MockInvoiceHelper::new();
+        helper.expect_get_by_payment_hash().returning(|_| {
+            Ok(Some(HoldInvoice {
+                invoice: Invoice {
+                    id: 0,
+                    payment_hash: vec![],
+                    preimage: None,
+                    bolt11: INVOICE.to_string(),
+                    state: InvoiceState::Unpaid.to_string(),
+                    created_at: Default::default(),
+                },
+                htlcs: vec![],
+            }))
+        });
+        helper.expect_insert_htlc().returning(|_| Ok(0));
+
+        let mut handler = Handler::new(helper, Settler::new(MockInvoiceHelper::new(), 0));
+
+        let res = handler
+            .htlc_accepted(HtlcCallbackRequest {
+                onion: Onion {
+                    payload: "".to_string(),
+                    type_field: "".to_string(),
+                    forward_msat: 0,
+                    outgoing_cltv_value: 0,
+                    total_msat: None,
+                    next_onion: "".to_string(),
+                    shared_secret: None,
+                    payment_secret: None,
+                },
+                htlc: Htlc {
+                    short_channel_id: "".to_string(),
+                    id: 0,
+                    amount_msat: 0,
+                    cltv_expiry: 0,
+                    cltv_expiry_relative: 0,
+                    payment_hash: "00".to_string(),
+                },
+                forward_to: None,
+            })
+            .await;
+
+        match res {
+            Resolution::Resolution(res) => {
+                assert_eq!(
+                    res,
+                    HtlcCallbackResponse::Fail {
+                        failure_message: FailureMessage::IncorrectPaymentDetails
+                    }
+                );
+            }
+            Resolution::Resolver(_) => {
+                assert!(false);
+            }
+        };
+    }
+
+    #[tokio::test]
+    async fn invoice_too_little_cltv() {
+        let mut helper = MockInvoiceHelper::new();
+        helper.expect_get_by_payment_hash().returning(|_| {
+            Ok(Some(HoldInvoice {
+                invoice: Invoice {
+                    id: 0,
+                    payment_hash: vec![],
+                    preimage: None,
+                    bolt11: INVOICE.to_string(),
+                    state: InvoiceState::Unpaid.to_string(),
+                    created_at: Default::default(),
+                },
+                htlcs: vec![],
+            }))
+        });
+        helper.expect_insert_htlc().returning(|_| Ok(0));
+
+        let mut handler = Handler::new(helper, Settler::new(MockInvoiceHelper::new(), 0));
+
+        let res = handler
+            .htlc_accepted(HtlcCallbackRequest {
+                onion: Onion {
+                    payload: "".to_string(),
+                    type_field: "".to_string(),
+                    forward_msat: 0,
+                    outgoing_cltv_value: 0,
+                    total_msat: None,
+                    next_onion: "".to_string(),
+                    shared_secret: None,
+                    payment_secret: Some(
+                        "f4c2b2acca47e76328b3414f8de1ff5bfb03c335357ded0d6e006281c6f23bfc"
+                            .to_string(),
+                    ),
+                },
+                htlc: Htlc {
+                    short_channel_id: "".to_string(),
+                    id: 0,
+                    amount_msat: 0,
+                    cltv_expiry: 0,
+                    cltv_expiry_relative: 2,
+                    payment_hash: "00".to_string(),
+                },
+                forward_to: None,
+            })
+            .await;
+
+        match res {
+            Resolution::Resolution(res) => {
+                assert_eq!(
+                    res,
+                    HtlcCallbackResponse::Fail {
+                        failure_message: FailureMessage::IncorrectPaymentDetails
+                    }
+                );
+            }
+            Resolution::Resolver(_) => {
+                assert!(false);
+            }
+        };
+    }
+
+    #[tokio::test]
+    async fn overpayment_rejection() {
+        let mut helper = MockInvoiceHelper::new();
+        helper.expect_get_by_payment_hash().returning(|_| {
+            Ok(Some(HoldInvoice {
+                invoice: Invoice {
+                    id: 0,
+                    payment_hash: vec![],
+                    preimage: None,
+                    bolt11: INVOICE.to_string(),
+                    state: InvoiceState::Unpaid.to_string(),
+                    created_at: Default::default(),
+                },
+                htlcs: vec![],
+            }))
+        });
+        helper.expect_insert_htlc().returning(|_| Ok(0));
+
+        let mut handler = Handler::new(helper, Settler::new(MockInvoiceHelper::new(), 0));
+
+        let res = handler
+            .htlc_accepted(HtlcCallbackRequest {
+                onion: Onion {
+                    payload: "".to_string(),
+                    type_field: "".to_string(),
+                    forward_msat: 0,
+                    outgoing_cltv_value: 0,
+                    total_msat: None,
+                    next_onion: "".to_string(),
+                    shared_secret: None,
+                    payment_secret: Some(
+                        "f4c2b2acca47e76328b3414f8de1ff5bfb03c335357ded0d6e006281c6f23bfc"
+                            .to_string(),
+                    ),
+                },
+                htlc: Htlc {
+                    short_channel_id: "".to_string(),
+                    id: 0,
+                    amount_msat: 21_000,
+                    cltv_expiry: 0,
+                    cltv_expiry_relative: 18,
+                    payment_hash: "00".to_string(),
+                },
+                forward_to: None,
+            })
+            .await;
+
+        match res {
+            Resolution::Resolution(res) => {
+                assert_eq!(
+                    res,
+                    HtlcCallbackResponse::Fail {
+                        failure_message: FailureMessage::IncorrectPaymentDetails
+                    }
+                );
+            }
+            Resolution::Resolver(_) => {
+                assert!(false);
+            }
+        };
+    }
+
+    #[tokio::test]
+    async fn accept_full_amount() {
+        let invoice_decoded = Bolt11Invoice::from_str(INVOICE).unwrap();
+        let payment_hash = invoice_decoded.payment_hash()[..].to_vec();
+        let payment_hash_cp = payment_hash.clone();
+
+        let mut helper = MockInvoiceHelper::new();
+        helper.expect_get_by_payment_hash().returning(move |_| {
+            Ok(Some(HoldInvoice {
+                invoice: Invoice {
+                    id: 0,
+                    preimage: None,
+                    bolt11: INVOICE.to_string(),
+                    created_at: Default::default(),
+                    payment_hash: payment_hash_cp.clone(),
+                    state: InvoiceState::Unpaid.to_string(),
+                },
+                htlcs: vec![],
+            }))
+        });
+        helper.expect_insert_htlc().returning(|_| Ok(0));
+
+        let payment_hash_cp_settler = payment_hash.clone();
+
+        let mut helper_settler = MockInvoiceHelper::new();
+        helper_settler
+            .expect_get_by_payment_hash()
+            .returning(move |_| {
+                Ok(Some(HoldInvoice {
+                    invoice: Invoice {
+                        id: 0,
+                        preimage: None,
+                        bolt11: INVOICE.to_string(),
+                        created_at: Default::default(),
+                        state: InvoiceState::Unpaid.to_string(),
+                        payment_hash: payment_hash_cp_settler.clone(),
+                    },
+                    htlcs: vec![],
+                }))
+            });
+        helper_settler
+            .expect_set_htlc_states_by_invoice()
+            .returning(|_, _| Ok(0));
+        helper_settler
+            .expect_set_invoice_state()
+            .returning(|_, _| Ok(0));
+        helper_settler
+            .expect_set_invoice_preimage()
+            .returning(|_, _| Ok(0));
+
+        let mut handler = Handler::new(helper, Settler::new(helper_settler, 0));
+
+        let res = handler
+            .htlc_accepted(HtlcCallbackRequest {
+                onion: Onion {
+                    payload: "".to_string(),
+                    type_field: "".to_string(),
+                    forward_msat: 0,
+                    outgoing_cltv_value: 0,
+                    total_msat: None,
+                    next_onion: "".to_string(),
+                    shared_secret: None,
+                    payment_secret: Some(
+                        "f4c2b2acca47e76328b3414f8de1ff5bfb03c335357ded0d6e006281c6f23bfc"
+                            .to_string(),
+                    ),
+                },
+                htlc: Htlc {
+                    short_channel_id: "".to_string(),
+                    id: 0,
+                    amount_msat: 1_000,
+                    cltv_expiry: 0,
+                    cltv_expiry_relative: 18,
+                    payment_hash: hex::encode(payment_hash.clone()),
+                },
+                forward_to: None,
+            })
+            .await;
+
+        match res {
+            Resolution::Resolution(_) => {
+                assert!(false);
+            }
+            Resolution::Resolver(res) => {
+                let preimage = &hex::decode("0011").unwrap();
+                handler
+                    .settler
+                    .settle(&payment_hash, preimage)
+                    .await
+                    .unwrap();
+
+                assert_eq!(
+                    res.await.unwrap(),
+                    HtlcCallbackResponse::Resolve {
+                        payment_key: hex::encode(preimage)
+                    }
+                );
+            }
+        };
     }
 }

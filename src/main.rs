@@ -5,6 +5,7 @@ use crate::settler::Settler;
 use anyhow::Result;
 use cln_plugin::{Builder, RpcMethodBuilder};
 use log::{debug, error, info};
+use tokio_util::sync::CancellationToken;
 
 mod commands;
 mod config;
@@ -17,10 +18,10 @@ mod settler;
 mod utils;
 
 #[derive(Clone)]
-struct State<T> {
+struct State<T, E> {
     handler: Handler<T>,
     settler: Settler<T>,
-    encoder: Encoder,
+    encoder: E,
     invoice_helper: T,
 }
 
@@ -149,9 +150,12 @@ async fn main() -> Result<()> {
         })
         .await?;
 
+    let cancellation_token = CancellationToken::new();
+
     let grpc_server = grpc::server::Server::new(
         &grpc_host,
         grpc_port,
+        cancellation_token.clone(),
         std::env::current_dir()?.join(utils::built_info::PKG_NAME),
         invoice_helper,
         encoder,
@@ -172,6 +176,8 @@ async fn main() -> Result<()> {
             }
         }
     }
+
+    cancellation_token.cancel();
 
     info!("Stopped plugin");
     Ok(())

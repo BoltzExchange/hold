@@ -35,3 +35,6 @@ jobs:
 
       - name: Clippy
         run: cargo clippy
+
+      - name: Unit tests
+        run: cargo test
