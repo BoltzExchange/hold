@@ -2,12 +2,27 @@ from __future__ import annotations
 
 import json
 import os
+from datetime import datetime, timezone
 from hashlib import sha256
 from threading import Thread
 from typing import Any
 
 
-def lightning(*args: str, node: int = 1) -> dict[str, Any]:
+def time_now() -> datetime:
+    return datetime.now(tz=timezone.utc)
+
+
+def new_preimage_bytes() -> tuple[bytes, bytes]:
+    preimage = os.urandom(32)
+    return preimage, sha256(preimage).digest()
+
+
+def new_preimage() -> tuple[str, str]:
+    preimage = os.urandom(32)
+    return preimage.hex(), sha256(preimage).hexdigest()
+
+
+def lightning(*args: str, node: int = 2) -> dict[str, Any]:
     return json.load(
         os.popen(
             f"docker exec boltz-cln-{node} lightning-cli --regtest {' '.join(args)}",
@@ -23,11 +38,6 @@ def lnd_raw(*args: str, node: int = 1) -> str:
     return os.popen(
         f"docker exec boltz-lnd-{node} lncli -n regtest {' '.join(args)}"
     ).read()
-
-
-def new_preimage() -> tuple[str, str]:
-    preimage = os.urandom(32)
-    return preimage.hex(), sha256(preimage).hexdigest()
 
 
 class LndPay(Thread):

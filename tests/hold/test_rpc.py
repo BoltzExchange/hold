@@ -3,7 +3,7 @@ from __future__ import annotations
 import time
 from typing import Any
 
-from utils import LndPay, lightning, new_preimage
+from hold.utils import LndPay, lightning, new_preimage
 
 
 def check_unpaid_invoice(
@@ -19,7 +19,7 @@ def check_unpaid_invoice(
 
 class TestRpc:
     def test_invoice(self) -> None:
-        amount = 2112
+        amount = 2_112
         (_, payment_hash) = new_preimage()
 
         invoice = lightning("holdinvoice", payment_hash, f"{amount}")
@@ -67,7 +67,7 @@ class TestRpc:
 
         payer = LndPay(1, invoice)
         payer.start()
-        time.sleep(2)
+        time.sleep(1)
 
         data = lightning("listholdinvoices", payment_hash)["holdinvoices"][0]
         assert data["state"] == "accepted"
@@ -95,7 +95,7 @@ class TestRpc:
 
         payer = LndPay(1, invoice)
         payer.start()
-        time.sleep(2)
+        time.sleep(1)
 
         data = lightning("listholdinvoices", payment_hash)["holdinvoices"][0]
         assert data["state"] == "accepted"

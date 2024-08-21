@@ -15,6 +15,8 @@ use tonic::transport::ServerTlsConfig;
 pub struct Server<T, E> {
     host: String,
     port: i64,
+    is_regtest: bool,
+
     directory: PathBuf,
     cancellation_token: CancellationToken,
 
@@ -28,9 +30,11 @@ where
     T: InvoiceHelper + Sync + Send + Clone + 'static,
     E: InvoiceEncoder + Sync + Send + Clone + 'static,
 {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         host: &str,
         port: i64,
+        is_regtest: bool,
         cancellation_token: CancellationToken,
         directory: PathBuf,
         invoice_helper: T,
@@ -42,6 +46,7 @@ where
             settler,
             encoder,
             directory,
+            is_regtest,
             invoice_helper,
             cancellation_token,
             host: host.to_string(),
@@ -49,7 +54,15 @@ where
     }
 
     pub async fn start(&self) -> Result<()> {
-        let socket_addr = SocketAddr::new(IpAddr::from_str(self.host.as_str())?, self.port as u16);
+        // Always listen to all interfaces on regtest
+        let socket_addr = SocketAddr::new(
+            IpAddr::from_str(if !self.is_regtest {
+                self.host.as_str()
+            } else {
+                "0.0.0.0"
+            })?,
+            self.port as u16,
+        );
         info!("Starting gRPC server on: {}", socket_addr);
 
         let (identity, ca) = load_certificates(self.directory.clone())?;
@@ -201,6 +214,7 @@ mod test {
         let server = Server::new(
             "127.0.0.1",
             port,
+            false,
             token.clone(),
             certs_dir.clone(),
             make_mock_invoice_helper(),

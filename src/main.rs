@@ -163,6 +163,7 @@ async fn main() -> Result<()> {
     let grpc_server = grpc::server::Server::new(
         &grpc_host,
         grpc_port,
+        config.network == "regtest",
         cancellation_token.clone(),
         std::env::current_dir()?.join(utils::built_info::PKG_NAME),
         invoice_helper,

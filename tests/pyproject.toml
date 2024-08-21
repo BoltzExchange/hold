@@ -1,20 +1,27 @@
 [tool.poetry]
-name = "tests"
+name = "hold"
 authors = ["Boltz"]
 description = "Test for CLN hold invoice plugin"
 version = "0.1.0"
 license = "MIT"
-package-mode = false
 
 [tool.poetry.dependencies]
 python = "^3.10"
 pytest = "^8.3.2"
 ruff = "^0.6.1"
+grpcio = "^1.65.5"
+grpcio-tools = "^1.65.5"
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
+[tool.ruff]
+exclude = ["hold/protos"]
+
 [tool.ruff.lint]
 select = ["ALL"]
-ignore = ["D100", "D101", "D102", "D103", "D107", "D211", "D212", "S605", "D203", "ISC001", "COM812", "S101"]
+ignore = [
+    "D100", "D101", "D102", "D103", "D104", "D107", "D211", "D212", "S605", "D203", "ISC001", "COM812", "S101",
+    "PLR2004"
+]

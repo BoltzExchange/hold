@@ -63,6 +63,8 @@ pub struct Settler<T> {
     pending_htlcs: Arc<Mutex<HashMap<Vec<u8>, Vec<PendingHtlc>>>>,
 }
 
+// TODO: only allow valid state transitions
+
 impl<T> Settler<T>
 where
     T: InvoiceHelper + Sync + Send + Clone,
@@ -81,6 +83,20 @@ where
         self.state_tx.subscribe()
     }
 
+    pub fn new_invoice(&self, invoice: String, payment_hash: Vec<u8>, amount_msat: u64) {
+        info!(
+            "Added hold invoice {} for {}msat",
+            hex::encode(payment_hash.clone()),
+            amount_msat
+        );
+
+        let _ = self.state_tx.send(StateUpdate {
+            payment_hash,
+            bolt11: invoice,
+            state: InvoiceState::Unpaid,
+        });
+    }
+
     pub fn set_accepted(&self, invoice: &Invoice, num_htlcs: usize) -> Result<()> {
         info!(
             "Accepted hold invoice {} with {} HTLCs",
@@ -90,7 +106,7 @@ where
         self.invoice_helper
             .set_invoice_state(invoice.id, InvoiceState::Accepted)?;
         let _ = self.state_tx.send(StateUpdate {
-            state: InvoiceState::Paid,
+            state: InvoiceState::Accepted,
             bolt11: invoice.bolt11.clone(),
             payment_hash: invoice.payment_hash.clone(),
         });
@@ -161,10 +177,12 @@ where
     }
 
     pub async fn cancel(&mut self, payment_hash: &Vec<u8>) -> Result<()> {
-        let htlcs = match self.pending_htlcs.lock().await.remove(payment_hash) {
-            Some(res) => res,
-            None => return Err(SettleError::InvoiceNotFound.into()),
-        };
+        let htlcs = self
+            .pending_htlcs
+            .lock()
+            .await
+            .remove(payment_hash)
+            .unwrap_or_else(Vec::new);
         let htlc_count = htlcs.len();
 
         for htlc in htlcs {
@@ -180,7 +198,7 @@ where
             payment_hash: payment_hash.clone(),
         });
         info!(
-            "Cancelled hold invoice {} with {} HTLCs",
+            "Cancelled hold invoice {} with pending {} HTLCs",
             hex::encode(payment_hash),
             htlc_count
         );

@@ -5,7 +5,6 @@ use crate::encoder::{InvoiceBuilder, InvoiceEncoder};
 use crate::State;
 use anyhow::Result;
 use cln_plugin::Plugin;
-use log::info;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fmt::Debug;
@@ -52,11 +51,10 @@ where
         payment_hash: payment_hash.clone(),
         state: InvoiceState::Unpaid.into(),
     })?;
-    info!(
-        "Added hold invoice {} for {}msat",
-        hex::encode(payment_hash),
-        params.amount
-    );
+    plugin
+        .state()
+        .settler
+        .new_invoice(invoice.clone(), payment_hash, params.amount);
 
     Ok(serde_json::to_value(&InvoiceResponse { bolt11: invoice })?)
 }

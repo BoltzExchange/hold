@@ -13,17 +13,28 @@ python-lint:
 python-format:
 	cd tests && poetry run ruff format
 
+python-protos:
+	cd tests && poetry run python -m grpc_tools.protoc -I ../protos \
+		--python_out=hold/protos \
+		--pyi_out=hold/protos \
+		--grpc_python_out=hold/protos \
+		../protos/hold.proto
+
 regtest-start:
 	git submodule init
 	git submodule update
-	chmod -R 777 regtest
+	chmod -R 777 regtest 2> /dev/null || true
 	cd regtest && COMPOSE_PROFILES=ci ./start.sh
-	cd ..
-	mkdir regtest/data/cln1/plugins
-	cp target/debug/hold regtest/data/cln1/plugins/
-	docker exec boltz-cln-1 lightning-cli --regtest plugin stop /root/hold.sh
-	rm -rf regtest/data/cln1/regtest/hold/
-	docker exec boltz-cln-1 lightning-cli --regtest plugin start /root/.lightning/plugins/hold
+	mkdir regtest/data/cln2/plugins
+	cp target/debug/hold regtest/data/cln2/plugins/
+	docker exec boltz-cln-2 lightning-cli --regtest plugin stop /root/hold.sh
+	rm -rf regtest/data/cln2/regtest/hold/
+	docker exec boltz-cln-2 lightning-cli --regtest plugin start /root/.lightning/plugins/hold
+
+	sleep 1
+	docker exec boltz-cln-2 chmod 777 -R /root/.lightning/regtest/hold
+
+	make python-protos
 
 regtest-stop:
 	cd regtest && ./stop.sh

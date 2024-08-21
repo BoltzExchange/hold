@@ -12,7 +12,7 @@ use crate::grpc::service::hold::{
 use crate::grpc::transformers::{transform_invoice_state, transform_route_hints};
 use crate::settler::Settler;
 use bitcoin::hashes::{sha256, Hash};
-use log::{error, info};
+use log::{debug, error};
 use std::pin::Pin;
 use tokio::sync::mpsc;
 use tonic::codegen::tokio_stream::wrappers::ReceiverStream;
@@ -114,11 +114,8 @@ where
             ));
         }
 
-        info!(
-            "Added hold invoice {} for {}msat",
-            hex::encode(params.payment_hash),
-            params.amount_msat
-        );
+        self.settler
+            .new_invoice(invoice.clone(), params.payment_hash, params.amount_msat);
 
         Ok(Response::new(InvoiceResponse { bolt11: invoice }))
     }
@@ -206,6 +203,36 @@ where
 
         let mut state_rx = self.settler.state_rx();
 
+        match self
+            .invoice_helper
+            .get_by_payment_hash(&params.payment_hash)
+        {
+            Ok(res) => {
+                if let Some(res) = res {
+                    if let Ok(state) = InvoiceState::try_from(res.invoice.state.as_str()) {
+                        if let Err(err) = tx
+                            .send(Ok(TrackResponse {
+                                state: transform_invoice_state(state),
+                            }))
+                            .await
+                        {
+                            error!("Could not send invoice state update: {}", err);
+                            return Err(Status::new(
+                                Code::Internal,
+                                format!("could not send initial invoice state: {}", err),
+                            ));
+                        }
+                    }
+                }
+            }
+            Err(err) => {
+                return Err(Status::new(
+                    Code::Internal,
+                    format!("could not fetch invoice state from database: {}", err),
+                ));
+            }
+        };
+
         tokio::spawn(async move {
             loop {
                 match state_rx.recv().await {
@@ -220,7 +247,7 @@ where
                             }))
                             .await
                         {
-                            error!("Could not send invoice state update: {}", err);
+                            debug!("Could not send invoice state update: {}", err);
                             break;
                         };
 
@@ -261,16 +288,12 @@ where
                             }))
                             .await
                         {
-                            error!("Could not send invoice state update: {}", err);
+                            debug!("Could not send all invoices state update: {}", err);
                             break;
                         };
-
-                        if update.state.is_final() {
-                            break;
-                        }
                     }
                     Err(err) => {
-                        error!("Waiting for invoice state updates failed: {}", err);
+                        error!("Waiting for all invoices state updates failed: {}", err);
                         break;
                     }
                 }
