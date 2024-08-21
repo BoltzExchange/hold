@@ -19,6 +19,7 @@ type ResolverSender = oneshot::Sender<HtlcCallbackResponse>;
 
 #[derive(Debug)]
 pub enum SettleError {
+    NoHtlcsToSettle,
     InvoiceNotFound,
     DatabaseFetchError(anyhow::Error),
     DatabaseUpdateError(anyhow::Error),
@@ -27,12 +28,13 @@ pub enum SettleError {
 impl Display for SettleError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
+            SettleError::NoHtlcsToSettle => write!(f, "no HTLCs to settle"),
             SettleError::InvoiceNotFound => write!(f, "invoice not found"),
             SettleError::DatabaseFetchError(err) => {
                 write!(f, "could not fetch invoice from database: {}", err)
             }
             SettleError::DatabaseUpdateError(err) => {
-                write!(f, "could update invoice in database: {}", err)
+                write!(f, "could not update invoice in database: {}", err)
             }
         }
     }
@@ -62,8 +64,6 @@ pub struct Settler<T> {
     state_tx: broadcast::Sender<StateUpdate>,
     pending_htlcs: Arc<Mutex<HashMap<Vec<u8>, Vec<PendingHtlc>>>>,
 }
-
-// TODO: only allow valid state transitions
 
 impl<T> Settler<T>
 where
@@ -103,8 +103,11 @@ where
             hex::encode(invoice.payment_hash.clone()),
             num_htlcs
         );
-        self.invoice_helper
-            .set_invoice_state(invoice.id, InvoiceState::Accepted)?;
+        self.invoice_helper.set_invoice_state(
+            invoice.id,
+            InvoiceState::try_from(&invoice.state)?,
+            InvoiceState::Accepted,
+        )?;
         let _ = self.state_tx.send(StateUpdate {
             state: InvoiceState::Accepted,
             bolt11: invoice.bolt11.clone(),
@@ -147,7 +150,7 @@ where
         let htlcs = match self.pending_htlcs.lock().await.remove(payment_hash) {
             Some(res) => res,
             None => {
-                return Err(SettleError::InvoiceNotFound.into());
+                return Err(SettleError::NoHtlcsToSettle.into());
             }
         };
         let htlc_count = htlcs.len();
@@ -198,7 +201,7 @@ where
             payment_hash: payment_hash.clone(),
         });
         info!(
-            "Cancelled hold invoice {} with pending {} HTLCs",
+            "Cancelled hold invoice {} with {} pending HTLCs",
             hex::encode(payment_hash),
             htlc_count
         );
@@ -283,10 +286,17 @@ where
                         }
                     };
 
-                    if let Err(err) = self
-                        .invoice_helper
-                        .set_htlc_state_by_id(htlc_db.id, InvoiceState::Cancelled)
-                    {
+                    if let Err(err) = self.invoice_helper.set_htlc_state_by_id(
+                        htlc_db.id,
+                        match InvoiceState::try_from(&htlc_db.state) {
+                            Ok(state) => state,
+                            Err(err) => {
+                                warn!("Could not parse HTLC database state: {}", err);
+                                continue;
+                            }
+                        },
+                        InvoiceState::Cancelled,
+                    ) {
                         warn!(
                             "Could not update database state of HTLC of {}: {}",
                             hex::encode(payment_hash),
@@ -319,16 +329,18 @@ where
             Err(err) => return Err(SettleError::DatabaseFetchError(err).into()),
         };
 
-        if let Err(err) = self
-            .invoice_helper
-            .set_invoice_state(invoice.invoice.id, state)
+        let current_state = InvoiceState::try_from(&invoice.invoice.state)?;
+
+        if let Err(err) =
+            self.invoice_helper
+                .set_invoice_state(invoice.invoice.id, current_state, state)
         {
             return Err(SettleError::DatabaseUpdateError(err).into());
         }
 
-        if let Err(err) = self
-            .invoice_helper
-            .set_htlc_states_by_invoice(invoice.invoice.id, state)
+        if let Err(err) =
+            self.invoice_helper
+                .set_htlc_states_by_invoice(invoice.invoice.id, current_state, state)
         {
             return Err(SettleError::DatabaseUpdateError(err).into());
         }

@@ -10,10 +10,25 @@ use diesel::{QueryDsl, RunQueryDsl, SelectableHelper};
 pub trait InvoiceHelper {
     fn insert(&self, invoice: &InvoiceInsertable) -> Result<usize>;
     fn insert_htlc(&self, htlc: &HtlcInsertable) -> Result<usize>;
-    fn set_invoice_state(&self, id: i64, state: InvoiceState) -> Result<usize>;
+    fn set_invoice_state(
+        &self,
+        id: i64,
+        state: InvoiceState,
+        new_state: InvoiceState,
+    ) -> Result<usize>;
     fn set_invoice_preimage(&self, id: i64, preimage: &[u8]) -> Result<usize>;
-    fn set_htlc_state_by_id(&self, htlc_id: i64, state: InvoiceState) -> Result<usize>;
-    fn set_htlc_states_by_invoice(&self, invoice_id: i64, state: InvoiceState) -> Result<usize>;
+    fn set_htlc_state_by_id(
+        &self,
+        htlc_id: i64,
+        state: InvoiceState,
+        new_state: InvoiceState,
+    ) -> Result<usize>;
+    fn set_htlc_states_by_invoice(
+        &self,
+        invoice_id: i64,
+        state: InvoiceState,
+        new_state: InvoiceState,
+    ) -> Result<usize>;
     fn get_all(&self) -> Result<Vec<HoldInvoice>>;
     fn get_paginated(&self, index_start: i64, limit: u64) -> Result<Vec<HoldInvoice>>;
     fn get_by_payment_hash(&self, payment_hash: &[u8]) -> Result<Option<HoldInvoice>>;
@@ -43,10 +58,17 @@ impl InvoiceHelper for InvoiceHelperDatabase {
             .execute(&mut self.pool.get()?)?)
     }
 
-    fn set_invoice_state(&self, id: i64, state: InvoiceState) -> Result<usize> {
+    fn set_invoice_state(
+        &self,
+        id: i64,
+        state: InvoiceState,
+        new_state: InvoiceState,
+    ) -> Result<usize> {
+        state.validate_transition(new_state)?;
+
         Ok(update(invoices::dsl::invoices)
             .filter(invoices::dsl::id.eq(id))
-            .set(invoices::dsl::state.eq(state.to_string()))
+            .set(invoices::dsl::state.eq(new_state.to_string()))
             .execute(&mut self.pool.get()?)?)
     }
 
@@ -57,17 +79,31 @@ impl InvoiceHelper for InvoiceHelperDatabase {
             .execute(&mut self.pool.get()?)?)
     }
 
-    fn set_htlc_state_by_id(&self, htlc_id: i64, state: InvoiceState) -> Result<usize> {
+    fn set_htlc_state_by_id(
+        &self,
+        htlc_id: i64,
+        state: InvoiceState,
+        new_state: InvoiceState,
+    ) -> Result<usize> {
+        state.validate_transition(new_state)?;
+
         Ok(update(htlcs::dsl::htlcs)
             .filter(htlcs::dsl::id.eq(htlc_id))
-            .set(htlcs::dsl::state.eq(state.to_string()))
+            .set(htlcs::dsl::state.eq(new_state.to_string()))
             .execute(&mut self.pool.get()?)?)
     }
 
-    fn set_htlc_states_by_invoice(&self, invoice_id: i64, state: InvoiceState) -> Result<usize> {
+    fn set_htlc_states_by_invoice(
+        &self,
+        invoice_id: i64,
+        state: InvoiceState,
+        new_state: InvoiceState,
+    ) -> Result<usize> {
+        state.validate_transition(new_state)?;
+
         Ok(update(htlcs::dsl::htlcs)
             .filter(htlcs::dsl::invoice_id.eq(invoice_id))
-            .set(htlcs::dsl::state.eq(state.to_string()))
+            .set(htlcs::dsl::state.eq(new_state.to_string()))
             .execute(&mut self.pool.get()?)?)
     }
 

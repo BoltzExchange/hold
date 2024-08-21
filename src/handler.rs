@@ -231,10 +231,25 @@ mod test {
         impl InvoiceHelper for InvoiceHelper {
             fn insert(&self, invoice: &InvoiceInsertable) -> Result<usize>;
             fn insert_htlc(&self, htlc: &HtlcInsertable) -> Result<usize>;
-            fn set_invoice_state(&self, id: i64, state: InvoiceState) -> Result<usize>;
+            fn set_invoice_state(
+                &self,
+                id: i64,
+                state: InvoiceState,
+                new_state: InvoiceState,
+            ) -> Result<usize>;
             fn set_invoice_preimage(&self, id: i64, preimage: &[u8]) -> Result<usize>;
-            fn set_htlc_state_by_id(&self, htlc_id: i64, state: InvoiceState) -> Result<usize>;
-            fn set_htlc_states_by_invoice(&self, invoice_id: i64, state: InvoiceState) -> Result<usize>;
+            fn set_htlc_state_by_id(
+                &self,
+                htlc_id: i64,
+                state: InvoiceState,
+                new_state: InvoiceState,
+            ) -> Result<usize>;
+            fn set_htlc_states_by_invoice(
+                &self,
+                invoice_id: i64,
+                state: InvoiceState,
+                new_state: InvoiceState,
+            ) -> Result<usize>;
             fn get_all(&self) -> Result<Vec<HoldInvoice>>;
             fn get_paginated(&self, index_start: i64, limit: u64) -> Result<Vec<HoldInvoice>>;
             fn get_by_payment_hash(&self, payment_hash: &[u8]) -> Result<Option<HoldInvoice>>;
@@ -548,10 +563,10 @@ mod test {
             });
         helper_settler
             .expect_set_htlc_states_by_invoice()
-            .returning(|_, _| Ok(0));
+            .returning(|_, _, _| Ok(0));
         helper_settler
             .expect_set_invoice_state()
-            .returning(|_, _| Ok(0));
+            .returning(|_, _, _| Ok(0));
         helper_settler
             .expect_set_invoice_preimage()
             .returning(|_, _| Ok(0));

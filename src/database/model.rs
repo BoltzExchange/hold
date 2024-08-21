@@ -1,6 +1,7 @@
 use diesel::internal::derives::multiconnection::chrono;
 use diesel::{AsChangeset, Associations, Identifiable, Insertable, Queryable, Selectable};
 use serde::Serialize;
+use std::error::Error;
 use std::fmt::{Display, Formatter};
 
 #[derive(Queryable, Identifiable, Selectable, AsChangeset, Serialize, Debug, PartialEq, Clone)]
@@ -56,6 +57,42 @@ pub struct HtlcInsertable {
     pub msat: i64,
 }
 
+#[derive(Debug, PartialEq)]
+pub enum StateTransitionError {
+    IsFinal(InvoiceState),
+    InvalidTransition(InvoiceState, InvoiceState),
+}
+
+impl Display for StateTransitionError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match *self {
+            StateTransitionError::IsFinal(state) => write!(f, "state {} is final", state),
+            StateTransitionError::InvalidTransition(old, new) => {
+                write!(f, "invoice state transition ({} -> {})", old, new)
+            }
+        }
+    }
+}
+
+impl Error for StateTransitionError {}
+
+#[derive(Debug, PartialEq)]
+pub enum InvoiceStateParsingError {
+    InvalidInvariant(String),
+}
+
+impl Display for InvoiceStateParsingError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            InvoiceStateParsingError::InvalidInvariant(state) => {
+                write!(f, "invalid invoice state invariant: {}", state)
+            }
+        }
+    }
+}
+
+impl Error for InvoiceStateParsingError {}
+
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum InvoiceState {
     Paid = 0,
@@ -83,7 +120,7 @@ impl From<InvoiceState> for String {
 }
 
 impl TryFrom<&str> for InvoiceState {
-    type Error = &'static str;
+    type Error = InvoiceStateParsingError;
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         match value {
@@ -91,14 +128,46 @@ impl TryFrom<&str> for InvoiceState {
             "unpaid" => Ok(InvoiceState::Unpaid),
             "accepted" => Ok(InvoiceState::Accepted),
             "cancelled" => Ok(InvoiceState::Cancelled),
-            &_ => Err("unknown state invariant"),
+            &_ => Err(InvoiceStateParsingError::InvalidInvariant(
+                value.to_string(),
+            )),
         }
+    }
+}
+
+impl TryFrom<&String> for InvoiceState {
+    type Error = InvoiceStateParsingError;
+
+    fn try_from(value: &String) -> Result<Self, Self::Error> {
+        InvoiceState::try_from(value.as_str())
     }
 }
 
 impl InvoiceState {
     pub fn is_final(&self) -> bool {
         *self == InvoiceState::Paid || *self == InvoiceState::Cancelled
+    }
+
+    pub fn validate_transition(&self, new_state: InvoiceState) -> Result<(), StateTransitionError> {
+        if self.is_final() {
+            return Err(StateTransitionError::IsFinal(*self));
+        }
+
+        match *self {
+            InvoiceState::Unpaid => {
+                if new_state != InvoiceState::Accepted && new_state != InvoiceState::Cancelled {
+                    return Err(StateTransitionError::InvalidTransition(*self, new_state));
+                }
+            }
+            InvoiceState::Accepted => {
+                if new_state == InvoiceState::Unpaid {
+                    return Err(StateTransitionError::InvalidTransition(*self, new_state));
+                }
+            }
+            _ => {}
+        };
+
+        Ok(())
     }
 }
 
@@ -134,7 +203,9 @@ impl HoldInvoice {
 
 #[cfg(test)]
 mod test {
-    use crate::database::model::{HoldInvoice, Htlc, Invoice, InvoiceState};
+    use crate::database::model::{
+        HoldInvoice, Htlc, Invoice, InvoiceState, InvoiceStateParsingError, StateTransitionError,
+    };
 
     #[test]
     fn invoice_state_to_string() {
@@ -162,7 +233,34 @@ mod test {
 
         assert_eq!(
             InvoiceState::try_from("invalid").err().unwrap(),
-            "unknown state invariant"
+            InvoiceStateParsingError::InvalidInvariant("invalid".to_string())
+        );
+    }
+
+    #[test]
+    fn invoice_state_from_string() {
+        assert_eq!(
+            InvoiceState::try_from(&String::from("paid")).unwrap(),
+            InvoiceState::Paid
+        );
+        assert_eq!(
+            InvoiceState::try_from(&String::from("unpaid")).unwrap(),
+            InvoiceState::Unpaid
+        );
+        assert_eq!(
+            InvoiceState::try_from(&String::from("accepted")).unwrap(),
+            InvoiceState::Accepted
+        );
+        assert_eq!(
+            InvoiceState::try_from(&String::from("cancelled")).unwrap(),
+            InvoiceState::Cancelled
+        );
+
+        assert_eq!(
+            InvoiceState::try_from(&String::from("invalid"))
+                .err()
+                .unwrap(),
+            InvoiceStateParsingError::InvalidInvariant("invalid".to_string())
         );
     }
 
@@ -173,6 +271,71 @@ mod test {
 
         assert!(!InvoiceState::Unpaid.is_final());
         assert!(!InvoiceState::Accepted.is_final());
+    }
+
+    #[test]
+    fn invoice_state_validate() {
+        assert_eq!(
+            InvoiceState::Unpaid
+                .validate_transition(InvoiceState::Accepted)
+                .unwrap(),
+            (),
+        );
+        assert_eq!(
+            InvoiceState::Unpaid
+                .validate_transition(InvoiceState::Cancelled)
+                .unwrap(),
+            ()
+        );
+
+        assert_eq!(
+            InvoiceState::Accepted
+                .validate_transition(InvoiceState::Paid)
+                .unwrap(),
+            (),
+        );
+        assert_eq!(
+            InvoiceState::Unpaid
+                .validate_transition(InvoiceState::Cancelled)
+                .unwrap(),
+            ()
+        );
+    }
+
+    #[test]
+    fn invoice_state_validate_transition_final() {
+        assert_eq!(
+            InvoiceState::Paid
+                .validate_transition(InvoiceState::Accepted)
+                .err()
+                .unwrap(),
+            StateTransitionError::IsFinal(InvoiceState::Paid)
+        );
+        assert_eq!(
+            InvoiceState::Cancelled
+                .validate_transition(InvoiceState::Accepted)
+                .err()
+                .unwrap(),
+            StateTransitionError::IsFinal(InvoiceState::Cancelled)
+        );
+    }
+
+    #[test]
+    fn invoice_state_validate_transition_invalid() {
+        assert_eq!(
+            InvoiceState::Unpaid
+                .validate_transition(InvoiceState::Paid)
+                .err()
+                .unwrap(),
+            StateTransitionError::InvalidTransition(InvoiceState::Unpaid, InvoiceState::Paid)
+        );
+        assert_eq!(
+            InvoiceState::Accepted
+                .validate_transition(InvoiceState::Unpaid)
+                .err()
+                .unwrap(),
+            StateTransitionError::InvalidTransition(InvoiceState::Accepted, InvoiceState::Unpaid)
+        );
     }
 
     #[test]

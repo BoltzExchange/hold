@@ -2,9 +2,7 @@ from __future__ import annotations
 
 import concurrent.futures
 import time
-from pathlib import Path
 
-import grpc
 import pytest
 
 from hold.protos.hold_pb2 import (
@@ -24,24 +22,13 @@ from hold.protos.hold_pb2 import (
     TrackRequest,
 )
 from hold.protos.hold_pb2_grpc import HoldStub
-from hold.utils import LndPay, lightning, new_preimage_bytes, time_now
+from hold.utils import LndPay, hold_client, lightning, new_preimage_bytes, time_now
 
 
 class TestGrpc:
     @pytest.fixture(scope="class", autouse=True)
     def cl(self) -> HoldStub:
-        cert_path = Path("../regtest/data/cln2/regtest/hold")
-        creds = grpc.ssl_channel_credentials(
-            root_certificates=cert_path.joinpath("ca.pem").read_bytes(),
-            private_key=cert_path.joinpath("client-key.pem").read_bytes(),
-            certificate_chain=cert_path.joinpath("client.pem").read_bytes(),
-        )
-        channel = grpc.secure_channel(
-            "127.0.0.1:9738",
-            creds,
-            options=(("grpc.ssl_target_name_override", "hold"),),
-        )
-        client = HoldStub(channel)
+        (channel, client) = hold_client()
 
         yield client
 
