@@ -4,7 +4,7 @@ use crate::handler::Handler;
 use crate::settler::Settler;
 use anyhow::Result;
 use cln_plugin::{Builder, RpcMethodBuilder};
-use log::{debug, error, info};
+use log::{debug, error, info, warn};
 use std::fs;
 use std::path::Path;
 use tokio_util::sync::CancellationToken;
@@ -82,7 +82,7 @@ async fn main() -> Result<()> {
         }
     };
 
-    let mpp_timeout = match plugin.option(&OPTION_MPP_TIMEOUT) {
+    let mut mpp_timeout = match plugin.option(&OPTION_MPP_TIMEOUT) {
         Ok(timeout) => {
             if timeout < 0 {
                 plugin.disable("MPP timeout has to be positive").await?;
@@ -146,6 +146,13 @@ async fn main() -> Result<()> {
         }
     };
 
+    let is_regtest = config.network == "regtest";
+
+    if is_regtest {
+        mpp_timeout = 10;
+        warn!("Using MPP timeout of {} seconds on regtest", mpp_timeout);
+    }
+
     let invoice_helper = database::helpers::invoice_helper::InvoiceHelperDatabase::new(db);
     let mut settler = Settler::new(invoice_helper.clone(), mpp_timeout);
 
@@ -163,7 +170,7 @@ async fn main() -> Result<()> {
     let grpc_server = grpc::server::Server::new(
         &grpc_host,
         grpc_port,
-        config.network == "regtest",
+        is_regtest,
         cancellation_token.clone(),
         std::env::current_dir()?.join(utils::built_info::PKG_NAME),
         invoice_helper,

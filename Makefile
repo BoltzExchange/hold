@@ -10,6 +10,9 @@ python-install:
 python-lint:
 	cd tests && poetry run ruff check
 
+python-lint-fix:
+	cd tests && poetry run ruff check --fix
+
 python-format:
 	cd tests && poetry run ruff format
 

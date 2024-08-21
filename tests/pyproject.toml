@@ -11,6 +11,7 @@ pytest = "^8.3.2"
 ruff = "^0.6.1"
 grpcio = "^1.65.5"
 grpcio-tools = "^1.65.5"
+bolt11 = "^2.1.0"
 
 [build-system]
 requires = ["poetry-core"]
