@@ -7,6 +7,7 @@ jobs:
     strategy:
       matrix:
         platform: [ ubuntu-latest ]
+        python-version: [ '3.10' ]
         rust-version: [ stable, nightly ]
 
     runs-on: ${{ matrix.platform }}
@@ -35,3 +36,30 @@ jobs:
 
       - name: Clippy
         run: cargo clippy
+
+      - name: Unit tests
+        run: cargo test
+
+      - name: Install Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install Poetry
+        uses: abatilo/actions-poetry@v3
+
+      - name: Install Python dependencies
+        run: make python-install
+
+      - name: Python lint
+        run: make python-lint
+
+      - name: Python formatting
+        run: poetry run ruff format --check
+        working-directory: ./tests
+
+      - name: Regtest startup
+        run: make regtest-start
+
+      - name: Integration tests
+        run: make integration-tests

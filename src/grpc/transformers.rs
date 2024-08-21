@@ -20,7 +20,7 @@ impl From<HoldInvoice> for hold::Invoice {
     fn from(value: HoldInvoice) -> Self {
         hold::Invoice {
             id: value.invoice.id,
-            payment_hash: vec![],
+            payment_hash: value.invoice.payment_hash,
             preimage: value.invoice.preimage,
             bolt11: value.invoice.bolt11,
             state: transform_invoice_state(

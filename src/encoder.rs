@@ -10,6 +10,7 @@ use std::fmt::{Display, Formatter};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
+use tonic::async_trait;
 
 const DEFAULT_MIN_FINAL_CLTV_EXPIRY_DELTA: u64 = 80;
 
@@ -88,6 +89,11 @@ impl InvoiceBuilder {
     }
 }
 
+#[async_trait]
+pub trait InvoiceEncoder {
+    async fn encode(&self, invoice_builder: InvoiceBuilder) -> Result<String>;
+}
+
 #[derive(Clone)]
 pub struct Encoder {
     network: Currency,
@@ -104,7 +110,20 @@ impl Encoder {
         })
     }
 
-    pub async fn encode(&self, invoice_builder: InvoiceBuilder) -> Result<String> {
+    fn parse_network(network: &str) -> Result<Currency> {
+        match network {
+            "bitcoin" => Ok(Currency::Bitcoin),
+            "testnet" => Ok(Currency::BitcoinTestnet),
+            "signet" => Ok(Currency::Signet),
+            "regtest" => Ok(Currency::Regtest),
+            _ => Err(NetworkError::InvalidNetwork.into()),
+        }
+    }
+}
+
+#[async_trait]
+impl InvoiceEncoder for Encoder {
+    async fn encode(&self, invoice_builder: InvoiceBuilder) -> Result<String> {
         let payment_hash: sha256::Hash = Hash::from_slice(&invoice_builder.payment_hash)?;
         let payment_secret = PaymentSecret(match invoice_builder.payment_secret {
             Some(secret) => secret.as_slice().try_into()?,
@@ -169,15 +188,5 @@ impl Encoder {
             .await?;
 
         Ok(signed.bolt11)
-    }
-
-    fn parse_network(network: &str) -> Result<Currency> {
-        match network {
-            "bitcoin" => Ok(Currency::Bitcoin),
-            "testnet" => Ok(Currency::BitcoinTestnet),
-            "signet" => Ok(Currency::Signet),
-            "regtest" => Ok(Currency::Regtest),
-            _ => Err(NetworkError::InvalidNetwork.into()),
-        }
     }
 }

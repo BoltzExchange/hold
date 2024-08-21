@@ -76,6 +76,7 @@ impl InvoiceHelper for InvoiceHelperDatabase {
 
         let invoices = invoices::dsl::invoices
             .select(Invoice::as_select())
+            .order_by(invoices::dsl::id)
             .load(&mut con)?;
         let htlcs = Htlc::belonging_to(&invoices)
             .select(Htlc::as_select())
@@ -95,7 +96,7 @@ impl InvoiceHelper for InvoiceHelperDatabase {
         let invoices = invoices::dsl::invoices
             .select(Invoice::as_select())
             .filter(invoices::dsl::id.ge(index_start))
-            .order_by(invoices::dsl::id.desc())
+            .order_by(invoices::dsl::id)
             .limit(limit as i64)
             .load(&mut con)?;
         let htlcs = Htlc::belonging_to(&invoices)

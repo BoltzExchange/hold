@@ -5,6 +5,9 @@ use crate::settler::Settler;
 use anyhow::Result;
 use cln_plugin::{Builder, RpcMethodBuilder};
 use log::{debug, error, info};
+use std::fs;
+use std::path::Path;
+use tokio_util::sync::CancellationToken;
 
 mod commands;
 mod config;
@@ -17,10 +20,10 @@ mod settler;
 mod utils;
 
 #[derive(Clone)]
-struct State<T> {
+struct State<T, E> {
     handler: Handler<T>,
     settler: Settler<T>,
-    encoder: Encoder,
+    encoder: E,
     invoice_helper: T,
 }
 
@@ -116,6 +119,13 @@ async fn main() -> Result<()> {
         }
     };
 
+    let config = plugin.configuration();
+
+    let plugin_dir = Path::new(config.lightning_dir.as_str()).join("hold");
+    if !plugin_dir.exists() {
+        fs::create_dir(plugin_dir)?;
+    }
+
     let db = match database::connect(&db_url) {
         Ok(db) => db,
         Err(err) => {
@@ -126,7 +136,6 @@ async fn main() -> Result<()> {
         }
     };
 
-    let config = plugin.configuration();
     let encoder = match Encoder::new(&config.rpc_file, &config.network).await {
         Ok(res) => res,
         Err(err) => {
@@ -149,9 +158,13 @@ async fn main() -> Result<()> {
         })
         .await?;
 
+    let cancellation_token = CancellationToken::new();
+
     let grpc_server = grpc::server::Server::new(
         &grpc_host,
         grpc_port,
+        config.network == "regtest",
+        cancellation_token.clone(),
         std::env::current_dir()?.join(utils::built_info::PKG_NAME),
         invoice_helper,
         encoder,
@@ -172,6 +185,8 @@ async fn main() -> Result<()> {
             }
         }
     }
+
+    cancellation_token.cancel();
 
     info!("Stopped plugin");
     Ok(())

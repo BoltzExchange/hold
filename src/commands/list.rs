@@ -1,6 +1,7 @@
 use crate::commands::structs::{parse_args, FromArr, ParamsError};
 use crate::database::helpers::invoice_helper::InvoiceHelper;
 use crate::database::model::{HoldInvoice, Htlc};
+use crate::encoder::InvoiceEncoder;
 use crate::State;
 use cln_plugin::Plugin;
 use lightning_invoice::Bolt11Invoice;
@@ -64,9 +65,10 @@ struct ListInvoicesResponse {
     holdinvoices: Vec<PrettyHoldInvoice>,
 }
 
-pub async fn list_invoices<T>(plugin: Plugin<State<T>>, args: Value) -> anyhow::Result<Value>
+pub async fn list_invoices<T, E>(plugin: Plugin<State<T, E>>, args: Value) -> anyhow::Result<Value>
 where
     T: InvoiceHelper + Sync + Send + Clone,
+    E: InvoiceEncoder + Sync + Send + Clone,
 {
     let params = parse_args::<ListInvoicesRequest>(args)?;
     if params.bolt11.is_some() && params.payment_hash.is_some() {

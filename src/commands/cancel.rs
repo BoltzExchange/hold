@@ -1,5 +1,6 @@
 use crate::commands::structs::{parse_args, FromArr, ParamsError};
 use crate::database::helpers::invoice_helper::InvoiceHelper;
+use crate::encoder::InvoiceEncoder;
 use crate::State;
 use cln_plugin::Plugin;
 use serde::{Deserialize, Serialize};
@@ -25,9 +26,10 @@ impl FromArr for CancelRequest {
 #[derive(Debug, Serialize)]
 struct CancelResponse {}
 
-pub async fn cancel<T>(plugin: Plugin<State<T>>, args: Value) -> anyhow::Result<Value>
+pub async fn cancel<T, E>(plugin: Plugin<State<T, E>>, args: Value) -> anyhow::Result<Value>
 where
     T: InvoiceHelper + Sync + Send + Clone,
+    E: InvoiceEncoder + Sync + Send + Clone,
 {
     let params = parse_args::<CancelRequest>(args)?;
     let payment_hash = hex::decode(params.payment_hash)?;
