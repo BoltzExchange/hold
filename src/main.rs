@@ -36,7 +36,16 @@ async fn main() -> Result<()> {
         "cln_plugin=trace,hold=trace,debug,info,warn,error",
     );
 
-    debug!("Starting plugin");
+    info!(
+        "Starting plugin {}-{}{}",
+        utils::built_info::PKG_VERSION,
+        utils::built_info::GIT_COMMIT_HASH_SHORT.unwrap_or(""),
+        if utils::built_info::GIT_DIRTY.unwrap_or(false) {
+            "-dirty"
+        } else {
+            ""
+        }
+    );
 
     let plugin = match Builder::new(tokio::io::stdin(), tokio::io::stdout())
         .dynamic()
