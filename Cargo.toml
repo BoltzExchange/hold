@@ -16,7 +16,7 @@ panic = "abort"
 [dependencies]
 anyhow = "1.0.86"
 cln-plugin = "0.1.9"
-diesel = { version = "2.2.2", features = ["postgres", "r2d2", "chrono", "sqlite"] }
+diesel = { version = "2.2.3", features = ["postgres", "r2d2", "chrono", "sqlite"] }
 diesel_migrations = "2.2.0"
 log = { version = "0.4.22", features = [] }
 prost = "0.13.1"
