@@ -51,3 +51,11 @@ db-stop:
 
 integration-tests:
 	cd tests && poetry run pytest
+
+binaries:
+	docker buildx build . -o=build --target=binaries
+	mv build/hold build/hold-linux-amd64
+	docker buildx build . -o=build --target=binaries --platform linux/arm64
+	mv build/hold build/hold-linux-arm64
+	tar -czcf build/hold-linux-amd64.tar.gz build/hold-linux-amd64
+	tar -czcf build/hold-linux-arm64.tar.gz build/hold-linux-arm64

@@ -19,3 +19,4 @@ target/
 tests/hold/protos/*
 !tests/hold/protos/__init__.py
 **/__pycache__
+build/
