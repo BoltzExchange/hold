@@ -30,7 +30,7 @@ regtest-start:
 	cd regtest && COMPOSE_PROFILES=ci ./start.sh
 	mkdir regtest/data/cln2/plugins
 	cp target/debug/hold regtest/data/cln2/plugins/
-	docker exec boltz-cln-2 lightning-cli --regtest plugin stop /root/hold.sh
+	docker exec boltz-cln-2 lightning-cli --regtest plugin stop /root/hold
 	rm -rf regtest/data/cln2/regtest/hold/
 	docker exec boltz-cln-2 lightning-cli --regtest plugin start /root/.lightning/plugins/hold
 
@@ -59,3 +59,5 @@ binaries:
 	mv build/hold build/hold-linux-arm64
 	tar -czcf build/hold-linux-amd64.tar.gz build/hold-linux-amd64
 	tar -czcf build/hold-linux-arm64.tar.gz build/hold-linux-arm64
+
+.PHONY: build
