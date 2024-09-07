@@ -56,7 +56,7 @@ jobs:
 
       - name: Python formatting
         run: poetry run ruff format --check
-        working-directory: ./tests
+        working-directory: ./tests-regtest
 
       - name: Regtest startup
         run: make regtest-start
