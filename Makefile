@@ -5,19 +5,19 @@ build-release:
 	cargo build --release
 
 python-install:
-	cd tests && poetry install
+	cd tests-regtest && poetry install
 
 python-lint:
-	cd tests && poetry run ruff check
+	cd tests-regtest && poetry run ruff check . ../tests
 
 python-lint-fix:
-	cd tests && poetry run ruff check --fix
+	cd tests-regtest && poetry run ruff check --fix . ../tests
 
 python-format:
-	cd tests && poetry run ruff format
+	cd tests-regtest && poetry run ruff format . ../tests
 
 python-protos:
-	cd tests && poetry run python -m grpc_tools.protoc -I ../protos \
+	cd tests-regtest && poetry run python -m grpc_tools.protoc -I ../protos \
 		--python_out=hold/protos \
 		--pyi_out=hold/protos \
 		--grpc_python_out=hold/protos \
@@ -50,7 +50,7 @@ db-stop:
 	docker stop hold-db
 
 integration-tests:
-	cd tests && poetry run pytest
+	cd tests-regtest && poetry run pytest hold/
 
 binaries:
 	docker buildx build . -o=build --target=binaries

@@ -16,7 +16,8 @@ target/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 .idea/
 
-tests/hold/protos/*
-!tests/hold/protos/__init__.py
+tests/*.tar.gz
+tests-regtest/hold/protos/*
+!tests-regtest/hold/protos/__init__.py
 **/__pycache__
 build/

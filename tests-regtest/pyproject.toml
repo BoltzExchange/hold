@@ -7,11 +7,11 @@ license = "MIT"
 
 [tool.poetry.dependencies]
 python = "^3.10"
-pytest = "^8.3.2"
-ruff = "^0.6.1"
-grpcio = "^1.65.5"
-grpcio-tools = "^1.65.5"
+ruff = "^0.6.4"
+grpcio = "^1.66.1"
+grpcio-tools = "^1.66.1"
 bolt11 = "^2.1.0"
+pytest = "^8.3.2"
 
 [build-system]
 requires = ["poetry-core"]
@@ -24,5 +24,5 @@ exclude = ["hold/protos"]
 select = ["ALL"]
 ignore = [
     "D100", "D101", "D102", "D103", "D104", "D107", "D211", "D212", "S605", "D203", "ISC001", "COM812", "S101",
-    "PLR2004", "PT011", "TCH001"
+    "PLR2004", "PT011", "TCH001", "F403", "F405"
 ]

@@ -54,6 +54,16 @@ where
     }
 
     pub async fn start(&self) -> Result<()> {
+        if self.port == -1 {
+            info!("Not starting gRPC server");
+            let token = self.cancellation_token.clone();
+            tokio::spawn(async move {
+                token.cancelled().await;
+            })
+            .await?;
+            return Ok(());
+        }
+
         // Always listen to all interfaces on regtest
         let socket_addr = SocketAddr::new(
             IpAddr::from_str(if !self.is_regtest {
