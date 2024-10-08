@@ -7,11 +7,11 @@ license = "MIT"
 
 [tool.poetry.dependencies]
 python = "^3.10"
-ruff = "^0.6.4"
-grpcio = "^1.66.1"
-grpcio-tools = "^1.66.1"
+ruff = "^0.6.9"
+grpcio = "^1.66.2"
+grpcio-tools = "^1.66.2"
 bolt11 = "^2.1.0"
-pytest = "^8.3.2"
+pytest = "^8.3.3"
 
 [build-system]
 requires = ["poetry-core"]
