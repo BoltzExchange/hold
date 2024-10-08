@@ -14,28 +14,28 @@ codegen-units = 1
 panic = "abort"
 
 [dependencies]
-anyhow = "1.0.86"
-cln-plugin = "0.1.9"
-diesel = { version = "2.2.3", features = ["postgres", "r2d2", "chrono", "sqlite"] }
+anyhow = "1.0.89"
+cln-plugin = "0.2.0"
+diesel = { version = "2.2.4", features = ["postgres", "r2d2", "chrono", "sqlite"] }
 diesel_migrations = "2.2.0"
 log = { version = "0.4.22", features = [] }
-prost = "0.13.1"
+prost = "0.13.3"
 rcgen = { version = "0.13.1", features = ["x509-parser"] }
-tokio = { version = "1.39.3", features = ["macros", "rt-multi-thread", "sync"] }
-tonic = { version = "0.12.1", features = ["prost", "tls", "gzip", "zstd"] }
-serde = { version = "1.0.208", features = ["derive"] }
-serde_json = { version = "1.0.125", features = ["preserve_order"] }
-lightning-invoice = "0.31.0"
+tokio = { version = "1.40.0", features = ["macros", "rt-multi-thread", "sync"] }
+tonic = { version = "0.12.3", features = ["prost", "tls", "gzip", "zstd"] }
+serde = { version = "1.0.210", features = ["derive"] }
+serde_json = { version = "1.0.128", features = ["preserve_order"] }
+lightning-invoice = { version = "0.32.0", features = ["std"] }
 chrono = { version = "0.4.38", features = ["serde"] }
-bitcoin = { version = "0.30.2", features = ["rand-std"] }
-secp256k1 = "0.27.0"
-cln-rpc = "0.1.9"
+bitcoin = { version = "0.32.3", features = ["rand-std"] }
+secp256k1 = "0.29.1"
+cln-rpc = "0.2.0"
 hex = "0.4.3"
-tokio-util = "0.7.11"
+tokio-util = "0.7.12"
 
 [build-dependencies]
 built = { version = "0.7.4", features = ["git2"] }
-tonic-build = "0.12.1"
+tonic-build = "0.12.3"
 
 [dev-dependencies]
 mockall = "0.13.0"
