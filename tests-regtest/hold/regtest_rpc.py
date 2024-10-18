@@ -89,6 +89,9 @@ class TestRpc:
         assert len(htlcs) == 1
         assert htlcs[0]["state"] == "paid"
 
+        # Settling again should not error
+        assert lightning("settleholdinvoice", preimage) == {}
+
     def test_cancel(self) -> None:
         (_, payment_hash) = new_preimage()
         invoice = lightning("holdinvoice", payment_hash, "1000")["bolt11"]
@@ -115,3 +118,6 @@ class TestRpc:
         htlcs = data["htlcs"]
         assert len(htlcs) == 1
         assert htlcs[0]["state"] == "cancelled"
+
+        # Cancelling again should not error
+        assert lightning("cancelholdinvoice", payment_hash) == {}
