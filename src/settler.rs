@@ -1,5 +1,5 @@
 use crate::database::helpers::invoice_helper::InvoiceHelper;
-use crate::database::model::{Invoice, InvoiceState};
+use crate::database::model::{HoldInvoice, Invoice, InvoiceState};
 use crate::hooks::{FailureMessage, HtlcCallbackResponse};
 use anyhow::Result;
 use log::{info, trace, warn};
@@ -147,6 +147,10 @@ where
         payment_hash: &Vec<u8>,
         payment_preimage: &Vec<u8>,
     ) -> Result<()> {
+        if self.get_invoice(payment_hash)?.invoice.state == InvoiceState::Paid.to_string() {
+            return Ok(());
+        }
+
         let htlcs = match self.pending_htlcs.lock().await.remove(payment_hash) {
             Some(res) => res,
             None => {
@@ -321,14 +325,7 @@ where
         payment_hash: &[u8],
         state: InvoiceState,
     ) -> Result<(i64, String)> {
-        let invoice = match self.invoice_helper.get_by_payment_hash(payment_hash) {
-            Ok(opt) => match opt {
-                Some(invoice) => invoice,
-                None => return Err(SettleError::InvoiceNotFound.into()),
-            },
-            Err(err) => return Err(SettleError::DatabaseFetchError(err).into()),
-        };
-
+        let invoice = self.get_invoice(payment_hash)?;
         let current_state = InvoiceState::try_from(&invoice.invoice.state)?;
 
         if let Err(err) =
@@ -346,5 +343,15 @@ where
         }
 
         Ok((invoice.invoice.id, invoice.invoice.bolt11))
+    }
+
+    fn get_invoice(&self, payment_hash: &[u8]) -> Result<HoldInvoice> {
+        match self.invoice_helper.get_by_payment_hash(payment_hash) {
+            Ok(opt) => match opt {
+                Some(invoice) => Ok(invoice),
+                None => Err(SettleError::InvoiceNotFound.into()),
+            },
+            Err(err) => Err(SettleError::DatabaseFetchError(err).into()),
+        }
     }
 }

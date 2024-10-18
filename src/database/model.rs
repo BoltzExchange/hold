@@ -149,7 +149,7 @@ impl InvoiceState {
     }
 
     pub fn validate_transition(&self, new_state: InvoiceState) -> Result<(), StateTransitionError> {
-        if self.is_final() {
+        if self.is_final() && *self != new_state {
             return Err(StateTransitionError::IsFinal(*self));
         }
 
@@ -318,6 +318,16 @@ mod test {
                 .unwrap(),
             StateTransitionError::IsFinal(InvoiceState::Cancelled)
         );
+    }
+
+    #[test]
+    fn invoice_state_validate_transition_final_same_state() {
+        assert!(InvoiceState::Paid
+            .validate_transition(InvoiceState::Paid)
+            .is_ok());
+        assert!(InvoiceState::Cancelled
+            .validate_transition(InvoiceState::Cancelled)
+            .is_ok());
     }
 
     #[test]
