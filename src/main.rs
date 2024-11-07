@@ -74,6 +74,11 @@ async fn main() -> Result<()> {
                 .description("Cancels a hold invoice")
                 .usage("payment_hash"),
         )
+        .rpcmethod_from_builder(
+            RpcMethodBuilder::new("cleanholdinvoices", commands::clean)
+                .description("Cleans canceled hold invoices")
+                .usage("[age]"),
+        )
         .configure()
         .await?
     {

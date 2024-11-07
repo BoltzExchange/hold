@@ -121,3 +121,26 @@ class TestRpc:
 
         # Cancelling again should not error
         assert lightning("cancelholdinvoice", payment_hash) == {}
+
+    def test_clean(self) -> None:
+        # One that we are not going to cancel which should not be cleaned
+        (_, payment_hash) = new_preimage()
+        _ = lightning("holdinvoice", payment_hash, "1000")["bolt11"]
+
+        (_, payment_hash) = new_preimage()
+        invoice = lightning("holdinvoice", payment_hash, "1000")["bolt11"]
+
+        payer = LndPay(1, invoice)
+        payer.start()
+        time.sleep(1)
+
+        lightning("cancelholdinvoice", payment_hash)
+
+        cleaned = lightning("cleanholdinvoices")["cleaned"]
+        assert cleaned > 0
+
+        res = lightning("listholdinvoices", payment_hash)["holdinvoices"]
+        assert len(res) == 0
+
+        res = lightning("listholdinvoices")["holdinvoices"]
+        assert len(res) > 0

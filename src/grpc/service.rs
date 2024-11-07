@@ -5,9 +5,9 @@ use crate::grpc::service::hold::hold_server::Hold;
 use crate::grpc::service::hold::invoice_request::Description;
 use crate::grpc::service::hold::list_request::Constraint;
 use crate::grpc::service::hold::{
-    CancelRequest, CancelResponse, GetInfoRequest, GetInfoResponse, InvoiceRequest,
-    InvoiceResponse, ListRequest, ListResponse, SettleRequest, SettleResponse, TrackAllRequest,
-    TrackAllResponse, TrackRequest, TrackResponse,
+    CancelRequest, CancelResponse, CleanRequest, CleanResponse, GetInfoRequest, GetInfoResponse,
+    InvoiceRequest, InvoiceResponse, ListRequest, ListResponse, SettleRequest, SettleResponse,
+    TrackAllRequest, TrackAllResponse, TrackRequest, TrackResponse,
 };
 use crate::grpc::transformers::{transform_invoice_state, transform_route_hints};
 use crate::settler::Settler;
@@ -190,6 +190,22 @@ where
         };
 
         Ok(Response::new(CancelResponse {}))
+    }
+
+    async fn clean(
+        &self,
+        request: Request<CleanRequest>,
+    ) -> Result<Response<CleanResponse>, Status> {
+        let params = request.into_inner();
+        match self.invoice_helper.clean_cancelled(params.age) {
+            Ok(deleted) => Ok(Response::new(CleanResponse {
+                cleaned: deleted as u64,
+            })),
+            Err(err) => Err(Status::new(
+                Code::Internal,
+                format!("could not clean invoices: {}", err),
+            )),
+        }
     }
 
     type TrackStream = Pin<Box<dyn Stream<Item = Result<TrackResponse, Status>> + Send>>;

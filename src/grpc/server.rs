@@ -126,6 +126,7 @@ mod test {
         impl InvoiceHelper for InvoiceHelper {
             fn insert(&self, invoice: &InvoiceInsertable) -> Result<usize>;
             fn insert_htlc(&self, htlc: &HtlcInsertable) -> Result<usize>;
+
             fn set_invoice_state(
                 &self,
                 id: i64,
@@ -145,6 +146,9 @@ mod test {
                 state: InvoiceState,
                 new_state: InvoiceState,
             ) -> Result<usize>;
+
+            fn clean_cancelled(&self, age: Option<u64>) -> Result<usize>;
+
             fn get_all(&self) -> Result<Vec<HoldInvoice>>;
             fn get_paginated(&self, index_start: i64, limit: u64) -> Result<Vec<HoldInvoice>>;
             fn get_by_payment_hash(&self, payment_hash: &[u8]) -> Result<Option<HoldInvoice>>;
