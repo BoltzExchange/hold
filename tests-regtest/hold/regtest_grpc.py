@@ -377,3 +377,47 @@ class TestGrpc:
                 (payment_hash_settled, invoice_settled.bolt11, InvoiceState.ACCEPTED),
                 (payment_hash_settled, invoice_settled.bolt11, InvoiceState.PAID),
             ]
+
+    def test_track_all_existing(self, cl: HoldStub) -> None:
+        expected_events = 3
+
+        (_, payment_hash_not_found) = new_preimage_bytes()
+        (preimage_settled, payment_hash_settled) = new_preimage_bytes()
+
+        def track_states() -> list[tuple[bytes, str, str]]:
+            evs = []
+
+            sub = cl.TrackAll(
+                TrackAllRequest(
+                    payment_hashes=[payment_hash_not_found, payment_hash_settled]
+                )
+            )
+            for ev in sub:
+                evs.append((ev.payment_hash, ev.bolt11, ev.state))
+                if len(evs) == expected_events:
+                    sub.cancel()
+                    break
+
+            return evs
+
+        with concurrent.futures.ThreadPoolExecutor() as pool:
+            invoice_settled: InvoiceResponse = cl.Invoice(
+                InvoiceRequest(payment_hash=payment_hash_settled, amount_msat=1_000)
+            )
+
+            fut = pool.submit(track_states)
+
+            pay = LndPay(1, invoice_settled.bolt11)
+            pay.start()
+            time.sleep(1)
+
+            cl.Settle(SettleRequest(payment_preimage=preimage_settled))
+            pay.join()
+
+            res = fut.result()
+            assert len(res) == expected_events
+            assert res == [
+                (payment_hash_settled, invoice_settled.bolt11, InvoiceState.UNPAID),
+                (payment_hash_settled, invoice_settled.bolt11, InvoiceState.ACCEPTED),
+                (payment_hash_settled, invoice_settled.bolt11, InvoiceState.PAID),
+            ]
