@@ -7,6 +7,7 @@ import pytest
 
 from hold.protos.hold_pb2 import (
     CancelRequest,
+    CleanRequest,
     GetInfoRequest,
     GetInfoResponse,
     Hop,
@@ -240,6 +241,32 @@ class TestGrpc:
         )
         assert len(page.invoices) == 5
         assert page.invoices[0].id == 3
+
+    def test_clean_cancelled(self, cl: HoldStub) -> None:
+        # One that we are not going to cancel which should not be cleaned
+        (_, payment_hash) = new_preimage_bytes()
+        cl.Invoice(InvoiceRequest(payment_hash=payment_hash, amount_msat=1))
+
+        (_, payment_hash) = new_preimage_bytes()
+        invoice: InvoiceResponse = cl.Invoice(
+            InvoiceRequest(payment_hash=payment_hash, amount_msat=1_000)
+        )
+
+        pay = LndPay(1, invoice.bolt11)
+        pay.start()
+        time.sleep(1)
+
+        cl.Cancel(CancelRequest(payment_hash=payment_hash))
+        pay.join()
+
+        res = cl.Clean(CleanRequest(age=0))
+        assert res.cleaned > 0
+
+        res = cl.List(ListRequest(payment_hash=payment_hash))
+        assert len(res.invoices) == 0
+
+        res = cl.List(ListRequest())
+        assert len(res.invoices) > 0
 
     def test_track_settle(self, cl: HoldStub) -> None:
         (preimage, payment_hash) = new_preimage_bytes()

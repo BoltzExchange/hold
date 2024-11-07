@@ -12,6 +12,9 @@ service Hold {
   rpc Settle (SettleRequest) returns (SettleResponse) {}
   rpc Cancel (CancelRequest) returns (CancelResponse) {}
 
+  // Cleans cancelled invoices
+  rpc Clean (CleanRequest) returns (CleanResponse) {}
+
   rpc Track (TrackRequest) returns (stream TrackResponse) {}
   rpc TrackAll (TrackAllRequest) returns (stream TrackAllResponse) {}
 }
@@ -102,6 +105,14 @@ message CancelRequest {
   bytes payment_hash = 1;
 }
 message CancelResponse {}
+
+message CleanRequest {
+  // Clean everything older than age seconds
+  optional uint64 age = 1;
+}
+message CleanResponse {
+  uint64 cleaned = 1;
+}
 
 message TrackRequest {
   bytes payment_hash = 1;
