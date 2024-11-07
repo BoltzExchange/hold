@@ -111,7 +111,10 @@ message TrackResponse {
   InvoiceState state = 1;
 }
 
-message TrackAllRequest {}
+message TrackAllRequest {
+  repeated bytes payment_hashes = 1;
+}
+
 message TrackAllResponse {
   bytes payment_hash = 1;
   string bolt11 = 2;

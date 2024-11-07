@@ -12,7 +12,7 @@ use crate::grpc::service::hold::{
 use crate::grpc::transformers::{transform_invoice_state, transform_route_hints};
 use crate::settler::Settler;
 use bitcoin::hashes::{sha256, Hash};
-use log::{debug, error};
+use log::{debug, error, warn};
 use std::pin::Pin;
 use tokio::sync::mpsc;
 use tonic::codegen::tokio_stream::wrappers::ReceiverStream;
@@ -270,13 +270,69 @@ where
 
     async fn track_all(
         &self,
-        _: Request<TrackAllRequest>,
+        request: Request<TrackAllRequest>,
     ) -> Result<Response<Self::TrackAllStream>, Status> {
+        let params = request.into_inner();
+
         let (tx, rx) = mpsc::channel(128);
 
+        let invoice_helper = self.invoice_helper.clone();
         let mut state_rx = self.settler.state_rx();
 
         tokio::spawn(async move {
+            for hash in params.payment_hashes {
+                let invoice = match invoice_helper.get_by_payment_hash(&hash) {
+                    Ok(invoice) => match invoice {
+                        Some(invoice) => invoice,
+                        None => {
+                            warn!(
+                                "Could not find invoice with payment hash: {}",
+                                hex::encode(&hash)
+                            );
+                            continue;
+                        }
+                    },
+                    Err(err) => {
+                        let err = format!(
+                            "Could not get invoice with payment hash {}: {}",
+                            hex::encode(&hash),
+                            err
+                        );
+                        error!("{}", err);
+                        let _ = tx.send(Err(Status::new(Code::Internal, err))).await;
+                        return;
+                    }
+                };
+
+                let state = transform_invoice_state(
+                    match InvoiceState::try_from(invoice.invoice.state.as_str()) {
+                        Ok(state) => state,
+                        Err(err) => {
+                            let err = format!(
+                                "Could not parse state of invoice {}: {}",
+                                hex::encode(&hash),
+                                err
+                            );
+                            error!("{}", err);
+                            let _ = tx.send(Err(Status::new(Code::Internal, err))).await;
+                            return;
+                        }
+                    },
+                );
+
+                if let Err(err) = tx
+                    .send(Ok(TrackAllResponse {
+                        state,
+                        bolt11: invoice.invoice.bolt11,
+                        payment_hash: invoice.invoice.payment_hash,
+                    }))
+                    .await
+                {
+                    error!("Could not send invoice state: {}", err);
+                    return;
+                };
+            }
+
             loop {
                 match state_rx.recv().await {
                     Ok(update) => {
