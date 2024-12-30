@@ -43,6 +43,8 @@ struct PrettyHoldInvoice {
     pub bolt11: String,
     pub state: String,
     pub created_at: chrono::NaiveDateTime,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub settled_at: Option<chrono::NaiveDateTime>,
     pub htlcs: Vec<Htlc>,
 }
 
@@ -55,6 +57,7 @@ impl From<HoldInvoice> for PrettyHoldInvoice {
             bolt11: value.invoice.bolt11.clone(),
             state: value.invoice.state.clone(),
             created_at: value.invoice.created_at,
+            settled_at: value.invoice.settled_at,
             htlcs: value.htlcs.clone(),
         }
     }

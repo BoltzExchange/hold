@@ -6,6 +6,7 @@ diesel::table! {
         bolt11 -> Text,
         state -> Text,
         created_at -> Timestamp,
+        settled_at -> Nullable<Timestamp>,
     }
 }
 

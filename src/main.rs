@@ -27,8 +27,6 @@ struct State<T, E> {
     invoice_helper: T,
 }
 
-// TODO: backfill records from old datastore
-
 #[tokio::main]
 async fn main() -> Result<()> {
     std::env::set_var(

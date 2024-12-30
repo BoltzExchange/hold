@@ -3,7 +3,7 @@ from __future__ import annotations
 import time
 from typing import Any
 
-from hold.utils import LndPay, lightning, new_preimage
+from hold.utils import LndPay, lightning, new_preimage, time_now
 
 
 def check_unpaid_invoice(
@@ -84,6 +84,7 @@ class TestRpc:
 
         data = lightning("listholdinvoices", payment_hash)["holdinvoices"][0]
         assert data["state"] == "paid"
+        assert data["settled_at"].startswith(time_now().strftime("%Y-%m-%dT%H:%M"))
 
         htlcs = data["htlcs"]
         assert len(htlcs) == 1

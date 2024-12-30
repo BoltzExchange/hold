@@ -305,6 +305,7 @@ class TestGrpc:
 
             invoice_state = cl.List(ListRequest(payment_hash=payment_hash)).invoices[0]
             assert invoice_state.state == InvoiceState.PAID
+            assert invoice_state.settled_at - int(time_now().timestamp()) < 2
             assert len(invoice_state.htlcs) == 1
             assert invoice_state.htlcs[0].state == InvoiceState.PAID
 

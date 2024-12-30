@@ -76,10 +76,20 @@ impl InvoiceHelper for InvoiceHelperDatabase {
     ) -> Result<usize> {
         state.validate_transition(new_state)?;
 
-        Ok(update(invoices::dsl::invoices)
-            .filter(invoices::dsl::id.eq(id))
-            .set(invoices::dsl::state.eq(new_state.to_string()))
-            .execute(&mut self.pool.get()?)?)
+        if new_state != InvoiceState::Paid {
+            Ok(update(invoices::dsl::invoices)
+                .filter(invoices::dsl::id.eq(id))
+                .set(invoices::dsl::state.eq(new_state.to_string()))
+                .execute(&mut self.pool.get()?)?)
+        } else {
+            Ok(update(invoices::dsl::invoices)
+                .filter(invoices::dsl::id.eq(id))
+                .set((
+                    invoices::dsl::state.eq(new_state.to_string()),
+                    invoices::dsl::settled_at.eq(Some(Utc::now().naive_utc())),
+                ))
+                .execute(&mut self.pool.get()?)?)
+        }
     }
 
     fn set_invoice_preimage(&self, id: i64, preimage: &[u8]) -> Result<usize> {

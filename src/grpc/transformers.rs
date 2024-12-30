@@ -27,6 +27,10 @@ impl From<HoldInvoice> for hold::Invoice {
                 InvoiceState::try_from(value.invoice.state.as_str()).unwrap(),
             ),
             created_at: value.invoice.created_at.and_utc().timestamp() as u64,
+            settled_at: value
+                .invoice
+                .settled_at
+                .map(|t| t.and_utc().timestamp() as u64),
             htlcs: value.htlcs.into_iter().map(|htlc| htlc.into()).collect(),
         }
     }

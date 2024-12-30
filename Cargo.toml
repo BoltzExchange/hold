@@ -23,7 +23,7 @@ prost = "0.13.4"
 rcgen = { version = "0.13.2", features = ["x509-parser"] }
 tokio = { version = "1.42.0", features = ["macros", "rt-multi-thread", "sync"] }
 tonic = { version = "0.12.3", features = ["prost", "tls", "gzip", "zstd"] }
-serde = { version = "1.0.216", features = ["derive"] }
+serde = { version = "1.0.217", features = ["derive"] }
 serde_json = { version = "1.0.134", features = ["preserve_order"] }
 lightning-invoice = { version = "0.32.0", features = ["std"] }
 chrono = { version = "0.4.39", features = ["serde"] }
