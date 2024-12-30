@@ -52,6 +52,9 @@ db-stop:
 integration-tests:
 	cd tests-regtest && uv run pytest hold/
 
+changelog:
+	git-cliff -o CHANGELOG.md
+
 binaries:
 	docker buildx build . -o=build --target=binaries
 	mv build/hold build/hold-linux-amd64
