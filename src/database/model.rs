@@ -13,6 +13,7 @@ pub struct Invoice {
     pub bolt11: String,
     pub state: String,
     pub created_at: chrono::NaiveDateTime,
+    pub settled_at: Option<chrono::NaiveDateTime>,
 }
 
 #[derive(Insertable, Debug, PartialEq, Clone)]
@@ -358,6 +359,7 @@ mod test {
                 bolt11: "".to_string(),
                 state: "".to_string(),
                 created_at: Default::default(),
+                settled_at: None,
             },
             vec![],
         );
@@ -407,6 +409,7 @@ mod test {
                 bolt11: "".to_string(),
                 state: "".to_string(),
                 created_at: Default::default(),
+                settled_at: None,
             },
             vec![
                 Htlc {

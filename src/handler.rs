@@ -299,11 +299,12 @@ mod test {
             Ok(Some(HoldInvoice {
                 invoice: Invoice {
                     id: 0,
-                    payment_hash: vec![],
                     preimage: None,
+                    settled_at: None,
+                    payment_hash: vec![],
                     bolt11: "".to_string(),
-                    state: InvoiceState::Paid.to_string(),
                     created_at: Default::default(),
+                    state: InvoiceState::Paid.to_string(),
                 },
                 htlcs: vec![],
             }))
@@ -349,8 +350,9 @@ mod test {
             Ok(Some(HoldInvoice {
                 invoice: Invoice {
                     id: 0,
-                    payment_hash: vec![],
                     preimage: None,
+                    settled_at: None,
+                    payment_hash: vec![],
                     bolt11: INVOICE.to_string(),
                     state: InvoiceState::Unpaid.to_string(),
                     created_at: Default::default(),
@@ -408,8 +410,9 @@ mod test {
             Ok(Some(HoldInvoice {
                 invoice: Invoice {
                     id: 0,
-                    payment_hash: vec![],
                     preimage: None,
+                    settled_at: None,
+                    payment_hash: vec![],
                     bolt11: INVOICE.to_string(),
                     state: InvoiceState::Unpaid.to_string(),
                     created_at: Default::default(),
@@ -470,8 +473,9 @@ mod test {
             Ok(Some(HoldInvoice {
                 invoice: Invoice {
                     id: 0,
-                    payment_hash: vec![],
                     preimage: None,
+                    settled_at: None,
+                    payment_hash: vec![],
                     bolt11: INVOICE.to_string(),
                     state: InvoiceState::Unpaid.to_string(),
                     created_at: Default::default(),
@@ -537,6 +541,7 @@ mod test {
                 invoice: Invoice {
                     id: 0,
                     preimage: None,
+                    settled_at: None,
                     bolt11: INVOICE.to_string(),
                     created_at: Default::default(),
                     payment_hash: payment_hash_cp.clone(),
@@ -557,6 +562,7 @@ mod test {
                     invoice: Invoice {
                         id: 0,
                         preimage: None,
+                        settled_at: None,
                         bolt11: INVOICE.to_string(),
                         created_at: Default::default(),
                         state: InvoiceState::Unpaid.to_string(),
