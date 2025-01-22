@@ -276,31 +276,19 @@ mod test {
 
     #[test]
     fn invoice_state_validate() {
-        assert_eq!(
-            InvoiceState::Unpaid
-                .validate_transition(InvoiceState::Accepted)
-                .unwrap(),
-            (),
-        );
-        assert_eq!(
-            InvoiceState::Unpaid
-                .validate_transition(InvoiceState::Cancelled)
-                .unwrap(),
-            ()
-        );
+        assert!(InvoiceState::Unpaid
+            .validate_transition(InvoiceState::Accepted)
+            .is_ok());
+        assert!(InvoiceState::Unpaid
+            .validate_transition(InvoiceState::Cancelled)
+            .is_ok());
 
-        assert_eq!(
-            InvoiceState::Accepted
-                .validate_transition(InvoiceState::Paid)
-                .unwrap(),
-            (),
-        );
-        assert_eq!(
-            InvoiceState::Unpaid
-                .validate_transition(InvoiceState::Cancelled)
-                .unwrap(),
-            ()
-        );
+        assert!(InvoiceState::Accepted
+            .validate_transition(InvoiceState::Paid)
+            .is_ok());
+        assert!(InvoiceState::Unpaid
+            .validate_transition(InvoiceState::Cancelled)
+            .is_ok());
     }
 
     #[test]
