@@ -104,7 +104,7 @@ where
         };
 
         if let Err(err) = self.invoice_helper.insert(&InvoiceInsertable {
-            bolt11: invoice.clone(),
+            invoice: invoice.clone(),
             payment_hash: params.payment_hash.clone(),
             state: InvoiceState::Unpaid.into(),
         }) {
@@ -339,7 +339,7 @@ where
                 if let Err(err) = tx
                     .send(Ok(TrackAllResponse {
                         state,
-                        bolt11: invoice.invoice.bolt11,
+                        bolt11: invoice.invoice.invoice,
                         payment_hash: invoice.invoice.payment_hash,
                     }))
                     .await
