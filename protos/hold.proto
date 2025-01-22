@@ -86,7 +86,7 @@ message Invoice {
   int64 id = 1;
   bytes payment_hash = 2;
   optional bytes preimage = 3;
-  string bolt11 = 4;
+  string invoice = 4;
   InvoiceState state = 5;
   uint64 created_at = 6;
   optional uint64 settled_at = 8;

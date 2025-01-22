@@ -12,7 +12,7 @@ use std::str::FromStr;
 #[derive(Debug, Deserialize)]
 struct ListInvoicesRequest {
     payment_hash: Option<String>,
-    bolt11: Option<String>,
+    invoice: Option<String>,
 }
 
 impl FromArr for ListInvoicesRequest {
@@ -26,7 +26,7 @@ impl FromArr for ListInvoicesRequest {
             } else {
                 None
             },
-            bolt11: if arr.len() > 1 {
+            invoice: if arr.len() > 1 {
                 arr[1].as_str().map(|res| res.to_string())
             } else {
                 None
@@ -54,7 +54,7 @@ impl From<HoldInvoice> for PrettyHoldInvoice {
             id: value.invoice.id,
             payment_hash: hex::encode(value.invoice.payment_hash),
             preimage: value.invoice.preimage.map(hex::encode),
-            bolt11: value.invoice.bolt11.clone(),
+            bolt11: value.invoice.invoice.clone(),
             state: value.invoice.state.clone(),
             created_at: value.invoice.created_at,
             settled_at: value.invoice.settled_at,
@@ -74,13 +74,13 @@ where
     E: InvoiceEncoder + Sync + Send + Clone,
 {
     let params = parse_args::<ListInvoicesRequest>(args)?;
-    if params.bolt11.is_some() && params.payment_hash.is_some() {
+    if params.invoice.is_some() && params.payment_hash.is_some() {
         return Err(ParamsError::TooManyParams.into());
     }
 
     let payment_hash = if let Some(hash) = params.payment_hash {
         Some(hex::decode(hash)?)
-    } else if let Some(invoice) = params.bolt11 {
+    } else if let Some(invoice) = params.invoice {
         Some((*Bolt11Invoice::from_str(&invoice)?.payment_hash())[..].to_vec())
     } else {
         None

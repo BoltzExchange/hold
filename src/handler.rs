@@ -85,7 +85,7 @@ where
             );
         }
 
-        let invoice_decoded = Bolt11Invoice::from_str(&invoice.invoice.bolt11)?;
+        let invoice_decoded = Bolt11Invoice::from_str(&invoice.invoice.invoice)?;
 
         {
             let payment_secret = args.onion.payment_secret.clone().unwrap_or("".to_string());
@@ -302,7 +302,7 @@ mod test {
                     preimage: None,
                     settled_at: None,
                     payment_hash: vec![],
-                    bolt11: "".to_string(),
+                    invoice: "".to_string(),
                     created_at: Default::default(),
                     state: InvoiceState::Paid.to_string(),
                 },
@@ -353,7 +353,7 @@ mod test {
                     preimage: None,
                     settled_at: None,
                     payment_hash: vec![],
-                    bolt11: INVOICE.to_string(),
+                    invoice: INVOICE.to_string(),
                     state: InvoiceState::Unpaid.to_string(),
                     created_at: Default::default(),
                 },
@@ -413,7 +413,7 @@ mod test {
                     preimage: None,
                     settled_at: None,
                     payment_hash: vec![],
-                    bolt11: INVOICE.to_string(),
+                    invoice: INVOICE.to_string(),
                     state: InvoiceState::Unpaid.to_string(),
                     created_at: Default::default(),
                 },
@@ -476,7 +476,7 @@ mod test {
                     preimage: None,
                     settled_at: None,
                     payment_hash: vec![],
-                    bolt11: INVOICE.to_string(),
+                    invoice: INVOICE.to_string(),
                     state: InvoiceState::Unpaid.to_string(),
                     created_at: Default::default(),
                 },
@@ -542,7 +542,7 @@ mod test {
                     id: 0,
                     preimage: None,
                     settled_at: None,
-                    bolt11: INVOICE.to_string(),
+                    invoice: INVOICE.to_string(),
                     created_at: Default::default(),
                     payment_hash: payment_hash_cp.clone(),
                     state: InvoiceState::Unpaid.to_string(),
@@ -563,7 +563,7 @@ mod test {
                         id: 0,
                         preimage: None,
                         settled_at: None,
-                        bolt11: INVOICE.to_string(),
+                        invoice: INVOICE.to_string(),
                         created_at: Default::default(),
                         state: InvoiceState::Unpaid.to_string(),
                         payment_hash: payment_hash_cp_settler.clone(),

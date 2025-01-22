@@ -110,7 +110,7 @@ where
         )?;
         let _ = self.state_tx.send(StateUpdate {
             state: InvoiceState::Accepted,
-            bolt11: invoice.bolt11.clone(),
+            bolt11: invoice.invoice.clone(),
             payment_hash: invoice.payment_hash.clone(),
         });
 
@@ -342,7 +342,7 @@ where
             return Err(SettleError::DatabaseUpdateError(err).into());
         }
 
-        Ok((invoice.invoice.id, invoice.invoice.bolt11))
+        Ok((invoice.invoice.id, invoice.invoice.invoice))
     }
 
     fn get_invoice(&self, payment_hash: &[u8]) -> Result<HoldInvoice> {

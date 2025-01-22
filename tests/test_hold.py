@@ -41,7 +41,7 @@ def test_holdinvoice(node_factory: NodeFactory, plugin_path: Path) -> None:
         },
     )
 
-    decoded = node.rpc.call("decode", [res["bolt11"]])
+    decoded = node.rpc.call("decode", [res["invoice"]])
 
     assert decoded["payment_hash"] == payment_hash
     assert decoded["amount_msat"] == amount
@@ -60,14 +60,14 @@ def test_listholdinvoices(node_factory: NodeFactory, plugin_path: Path) -> None:
                 "amount": 1_000,
                 "payment_hash": payment_hash,
             },
-        )["bolt11"]
+        )["invoice"]
         for payment_hash in hashes
     ]
 
     assert len(node.rpc.call("listholdinvoices")["holdinvoices"]) == len(hashes)
     assert node.rpc.call(
         "listholdinvoices", {"payment_hash": hashes[0]}
-    ) == node.rpc.call("listholdinvoices", {"bolt11": invoices[0]})
+    ) == node.rpc.call("listholdinvoices", {"invoice": invoices[0]})
 
 
 def test_settle(
@@ -91,7 +91,7 @@ def test_settle(
     amount = 1_000
     invoice = l1.rpc.call(
         "holdinvoice", {"amount": amount, "payment_hash": payment_hash}
-    )["bolt11"]
+    )["invoice"]
 
     Thread(target=pay_with_thread, args=(l2, invoice)).start()
     time.sleep(2)
@@ -140,7 +140,7 @@ def test_cancel(
     amount = 1_000
     invoice = l1.rpc.call(
         "holdinvoice", {"amount": amount, "payment_hash": payment_hash}
-    )["bolt11"]
+    )["invoice"]
 
     Thread(target=pay_with_thread, args=(l2, invoice)).start()
     time.sleep(2)

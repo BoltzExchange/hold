@@ -47,7 +47,7 @@ where
         .encode(InvoiceBuilder::new(&payment_hash).amount_msat(params.amount))
         .await?;
     plugin.state().invoice_helper.insert(&InvoiceInsertable {
-        bolt11: invoice.clone(),
+        invoice: invoice.clone(),
         payment_hash: payment_hash.clone(),
         state: InvoiceState::Unpaid.into(),
     })?;

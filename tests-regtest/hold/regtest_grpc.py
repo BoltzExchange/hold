@@ -209,7 +209,7 @@ class TestGrpc:
         hold_list: ListResponse = cl.List(ListRequest(payment_hash=payment_hash))
         assert len(hold_list.invoices) == 1
 
-        assert hold_list.invoices[0].bolt11 == invoice.bolt11
+        assert hold_list.invoices[0].invoice == invoice.bolt11
         assert hold_list.invoices[0].payment_hash == payment_hash
 
     def test_list_payment_hash_not_found(self, cl: HoldStub) -> None:

@@ -22,7 +22,7 @@ impl From<HoldInvoice> for hold::Invoice {
             id: value.invoice.id,
             payment_hash: value.invoice.payment_hash,
             preimage: value.invoice.preimage,
-            bolt11: value.invoice.bolt11,
+            invoice: value.invoice.invoice,
             state: transform_invoice_state(
                 InvoiceState::try_from(value.invoice.state.as_str()).unwrap(),
             ),

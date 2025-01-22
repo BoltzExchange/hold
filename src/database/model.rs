@@ -10,7 +10,7 @@ pub struct Invoice {
     pub id: i64,
     pub payment_hash: Vec<u8>,
     pub preimage: Option<Vec<u8>>,
-    pub bolt11: String,
+    pub invoice: String,
     pub state: String,
     pub created_at: chrono::NaiveDateTime,
     pub settled_at: Option<chrono::NaiveDateTime>,
@@ -20,7 +20,7 @@ pub struct Invoice {
 #[diesel(table_name = crate::database::schema::invoices)]
 pub struct InvoiceInsertable {
     pub payment_hash: Vec<u8>,
-    pub bolt11: String,
+    pub invoice: String,
     pub state: String,
 }
 
@@ -344,7 +344,7 @@ mod test {
                 id: 0,
                 payment_hash: vec![],
                 preimage: None,
-                bolt11: "".to_string(),
+                invoice: "".to_string(),
                 state: "".to_string(),
                 created_at: Default::default(),
                 settled_at: None,
@@ -394,7 +394,7 @@ mod test {
                 id: 0,
                 payment_hash: vec![],
                 preimage: None,
-                bolt11: "".to_string(),
+                invoice: "".to_string(),
                 state: "".to_string(),
                 created_at: Default::default(),
                 settled_at: None,
