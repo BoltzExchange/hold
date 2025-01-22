@@ -6,6 +6,7 @@ service Hold {
   rpc GetInfo (GetInfoRequest) returns (GetInfoResponse);
 
   rpc Invoice (InvoiceRequest) returns (InvoiceResponse) {}
+  rpc Inject (InjectRequest) returns (InjectResponse) {}
 
   rpc List (ListRequest) returns (ListResponse) {}
 
@@ -52,6 +53,11 @@ message InvoiceRequest {
 message InvoiceResponse {
   string bolt11 = 1;
 }
+
+message InjectRequest {
+  string invoice = 1;
+}
+message InjectResponse {}
 
 message ListRequest {
   message Pagination {

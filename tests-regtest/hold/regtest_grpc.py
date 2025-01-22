@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import concurrent.futures
 import time
+from datetime import datetime, timezone
 
+import bolt11
 import pytest
 
 from hold.protos.hold_pb2 import (
@@ -11,6 +13,7 @@ from hold.protos.hold_pb2 import (
     GetInfoRequest,
     GetInfoResponse,
     Hop,
+    InjectRequest,
     Invoice,
     InvoiceRequest,
     InvoiceResponse,
@@ -23,7 +26,14 @@ from hold.protos.hold_pb2 import (
     TrackRequest,
 )
 from hold.protos.hold_pb2_grpc import HoldStub
-from hold.utils import LndPay, hold_client, lightning, new_preimage_bytes, time_now
+from hold.utils import (
+    LndPay,
+    hold_client,
+    lightning,
+    new_preimage,
+    new_preimage_bytes,
+    time_now,
+)
 
 
 class TestGrpc:
@@ -193,6 +203,61 @@ class TestGrpc:
                 assert decoded_hop["fee_base_msat"] == hint.base_fee
                 assert decoded_hop["fee_proportional_millionths"] == hint.ppm_fee
                 assert decoded_hop["cltv_expiry_delta"] == hint.cltv_expiry_delta
+
+    def test_inject(self, cl: HoldStub) -> None:
+        features = bolt11.Features.from_feature_list(
+            {
+                bolt11.Feature.var_onion_optin: bolt11.FeatureState.required,
+                bolt11.Feature.payment_secret: bolt11.FeatureState.required,
+                bolt11.Feature.basic_mpp: bolt11.FeatureState.supported,
+            }
+        )
+
+        preimage, payment_hash = new_preimage_bytes()
+        invoice = bolt11.encode(
+            bolt11.Bolt11(
+                "bcrt",
+                datetime.now(tz=timezone.utc).timestamp(),
+                bolt11.Tags(
+                    [
+                        bolt11.Tag(
+                            bolt11.TagChar.payment_hash,
+                            payment_hash.hex(),
+                        ),
+                        bolt11.Tag(
+                            bolt11.TagChar.payment_secret,
+                            new_preimage()[0],
+                        ),
+                        bolt11.Tag(
+                            bolt11.TagChar.description,
+                            "",
+                        ),
+                        bolt11.Tag(
+                            bolt11.TagChar.features,
+                            features,
+                        ),
+                    ]
+                ),
+                bolt11.MilliSatoshi(21_000),
+            ),
+            "d5563f4911490c03d82efdc5d8b52d00f4a894936bb4ec964f18a9fce3de9ff4",
+        )
+        invoice = lightning("signinvoice", invoice)["bolt11"]
+
+        cl.Inject(InjectRequest(invoice=invoice))
+
+        pay = LndPay(1, invoice)
+        pay.start()
+        time.sleep(1)
+
+        state = cl.List(ListRequest(payment_hash=payment_hash)).invoices[0].state
+        assert state == InvoiceState.ACCEPTED
+
+        cl.Settle(SettleRequest(payment_preimage=preimage))
+        pay.join()
+
+        state = cl.List(ListRequest(payment_hash=payment_hash)).invoices[0].state
+        assert state == InvoiceState.PAID
 
     def test_list_all(self, cl: HoldStub) -> None:
         cl.Invoice(InvoiceRequest(payment_hash=new_preimage_bytes()[1], amount_msat=1))

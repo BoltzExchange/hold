@@ -4,6 +4,8 @@ use crate::handler::Handler;
 use crate::settler::Settler;
 use anyhow::Result;
 use cln_plugin::{Builder, RpcMethodBuilder};
+use cln_rpc::model::requests::GetinfoRequest;
+use cln_rpc::ClnRpc;
 use log::{debug, error, info, warn};
 use std::fs;
 use std::path::Path;
@@ -16,11 +18,13 @@ mod encoder;
 mod grpc;
 mod handler;
 mod hooks;
+mod invoice;
 mod settler;
 mod utils;
 
 #[derive(Clone)]
 struct State<T, E> {
+    our_id: [u8; 33],
     handler: Handler<T>,
     settler: Settler<T>,
     encoder: E,
@@ -61,6 +65,11 @@ async fn main() -> Result<()> {
             RpcMethodBuilder::new("holdinvoice", commands::invoice)
                 .description("Creates a new hold invoice")
                 .usage("payment_hash amount"),
+        )
+        .rpcmethod_from_builder(
+            RpcMethodBuilder::new("injectholdinvoice", commands::inject_invoice)
+                .description("Injects a hold invoice")
+                .usage("invoice"),
         )
         .rpcmethod_from_builder(
             RpcMethodBuilder::new("settleholdinvoice", commands::settle)
@@ -168,8 +177,16 @@ async fn main() -> Result<()> {
     let invoice_helper = database::helpers::invoice_helper::InvoiceHelperDatabase::new(db);
     let mut settler = Settler::new(invoice_helper.clone(), mpp_timeout);
 
+    let our_id = ClnRpc::new(config.rpc_file)
+        .await?
+        .call_typed(&GetinfoRequest {})
+        .await?
+        .id
+        .serialize();
+
     let plugin = plugin
         .start(State {
+            our_id,
             encoder: encoder.clone(),
             settler: settler.clone(),
             invoice_helper: invoice_helper.clone(),
@@ -185,6 +202,7 @@ async fn main() -> Result<()> {
         is_regtest,
         cancellation_token.clone(),
         std::env::current_dir()?.join(utils::built_info::PKG_NAME),
+        our_id,
         invoice_helper,
         encoder,
         settler.clone(),
