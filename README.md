@@ -42,12 +42,13 @@ This can be:
 
 `hold-mpp-timeout` the MPP timeout of payment shards in seconds.
 Default is 60.
-*Should only be changed for debugging and testing purposes*
+_Should only be changed for debugging and testing purposes_
 
 ### Commands
 
 - `holdinvoice payment_hash amount`: creates a new hold invoice
-- `listholdinvoices [payment_hash] [bolt11]`: lists existing hold invoices
+- `injectinvoice invoice`: injects a new invoice into the hold plugin
+- `listholdinvoices [payment_hash] [invoice]`: lists existing hold invoices
 - `settleholdinvoice preimage`: settles a hold invoice
 - `cancelholdinvoice payment_hash`: cancels a hold invoice
 

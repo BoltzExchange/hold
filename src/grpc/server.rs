@@ -20,6 +20,7 @@ pub struct Server<T, E> {
     directory: PathBuf,
     cancellation_token: CancellationToken,
 
+    our_id: [u8; 33],
     encoder: E,
     invoice_helper: T,
     settler: Settler<T>,
@@ -37,12 +38,14 @@ where
         is_regtest: bool,
         cancellation_token: CancellationToken,
         directory: PathBuf,
+        our_id: [u8; 33],
         invoice_helper: T,
         encoder: E,
         settler: Settler<T>,
     ) -> Self {
         Self {
             port,
+            our_id,
             settler,
             encoder,
             directory,
@@ -85,6 +88,7 @@ where
 
         Ok(server
             .add_service(HoldServer::new(HoldService::new(
+                self.our_id,
                 self.invoice_helper.clone(),
                 self.encoder.clone(),
                 self.settler.clone(),
@@ -246,6 +250,7 @@ mod test {
             false,
             token.clone(),
             certs_dir.clone(),
+            [0; 33],
             make_mock_invoice_helper(),
             make_mock_invoice_encoder(),
             Settler::new(make_mock_invoice_helper(), 60),

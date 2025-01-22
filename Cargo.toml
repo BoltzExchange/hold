@@ -37,6 +37,8 @@ secp256k1 = "0.29.1"
 cln-rpc = "0.3.0"
 hex = "0.4.3"
 tokio-util = "0.7.13"
+lightning = { version = "0.1.0", features = ["std"] }
+bech32 = "0.9.1"
 
 [build-dependencies]
 built = { version = "0.7.5", features = ["git2"] }

@@ -1,9 +1,9 @@
 use crate::database::helpers::invoice_helper::InvoiceHelper;
 use crate::database::model::{HoldInvoice, HtlcInsertable, InvoiceState};
 use crate::hooks::{FailureMessage, HtlcCallbackRequest, HtlcCallbackResponse};
+use crate::invoice::Invoice;
 use crate::settler::{Resolver, Settler};
 use anyhow::Result;
-use lightning_invoice::Bolt11Invoice;
 use log::{debug, error, info, warn};
 use std::str::FromStr;
 use std::sync::Arc;
@@ -85,11 +85,11 @@ where
             );
         }
 
-        let invoice_decoded = Bolt11Invoice::from_str(&invoice.invoice.invoice)?;
+        let invoice_decoded = Invoice::from_str(&invoice.invoice.invoice)?;
 
-        {
-            let payment_secret = args.onion.payment_secret.clone().unwrap_or("".to_string());
-            if payment_secret != hex::encode(invoice_decoded.payment_secret().0) {
+        if let Some(payment_secret) = invoice_decoded.payment_secret() {
+            let htlc_secret = args.onion.payment_secret.clone().unwrap_or("".to_string());
+            if htlc_secret != hex::encode(payment_secret) {
                 return self.reject_htlc(
                     &invoice,
                     &args,
@@ -278,7 +278,6 @@ mod test {
                     cltv_expiry_relative: 0,
                     payment_hash: "00".to_string(),
                 },
-                forward_to: None,
             })
             .await;
 
@@ -324,7 +323,6 @@ mod test {
                     cltv_expiry_relative: 0,
                     payment_hash: "00".to_string(),
                 },
-                forward_to: None,
             })
             .await;
 
@@ -384,7 +382,6 @@ mod test {
                     cltv_expiry_relative: 0,
                     payment_hash: "00".to_string(),
                 },
-                forward_to: None,
             })
             .await;
 
@@ -447,7 +444,6 @@ mod test {
                     cltv_expiry_relative: 2,
                     payment_hash: "00".to_string(),
                 },
-                forward_to: None,
             })
             .await;
 
@@ -510,7 +506,6 @@ mod test {
                     cltv_expiry_relative: 18,
                     payment_hash: "00".to_string(),
                 },
-                forward_to: None,
             })
             .await;
 
@@ -606,7 +601,6 @@ mod test {
                     cltv_expiry_relative: 18,
                     payment_hash: hex::encode(payment_hash.clone()),
                 },
-                forward_to: None,
             })
             .await;
 

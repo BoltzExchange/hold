@@ -4,7 +4,7 @@ use crate::handler::Resolution;
 use crate::State;
 use anyhow::Result;
 use cln_plugin::Plugin;
-use log::{debug, error};
+use log::error;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -12,7 +12,6 @@ use serde_json::Value;
 pub struct HtlcCallbackRequest {
     pub onion: Onion,
     pub htlc: Htlc,
-    pub forward_to: Option<String>,
 }
 
 #[allow(dead_code)]
@@ -73,15 +72,7 @@ where
         }
     };
 
-    // Ignore forwards
-    if args.forward_to.is_some() {
-        debug!(
-            "Ignoring forward: {}:{}",
-            args.htlc.short_channel_id, args.htlc.id
-        );
-        return Ok(serde_json::to_value(HtlcCallbackResponse::Continue)?);
-    }
-
+    // Forwards are not ignored anymore because there could be a next hop for BOLT12 invoices
     let resolution = match plugin.state().handler.clone().htlc_accepted(args).await {
         Resolution::Resolution(res) => res,
         Resolution::Resolver(solver) => solver.await.unwrap_or_else(|err| {
