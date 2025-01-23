@@ -9,8 +9,18 @@ use log::info;
 use std::net::{IpAddr, SocketAddr};
 use std::path::PathBuf;
 use std::str::FromStr;
+use std::sync::Arc;
+use tokio::sync::broadcast;
 use tokio_util::sync::CancellationToken;
 use tonic::transport::ServerTlsConfig;
+
+pub struct State<T, E> {
+    pub our_id: [u8; 33],
+    pub encoder: E,
+    pub invoice_helper: T,
+    pub settler: Settler<T>,
+    pub onion_msg_rx: Arc<broadcast::Receiver<crate::hooks::OnionMessage>>,
+}
 
 pub struct Server<T, E> {
     host: String,
@@ -20,10 +30,7 @@ pub struct Server<T, E> {
     directory: PathBuf,
     cancellation_token: CancellationToken,
 
-    our_id: [u8; 33],
-    encoder: E,
-    invoice_helper: T,
-    settler: Settler<T>,
+    state: State<T, E>,
 }
 
 impl<T, E> Server<T, E>
@@ -31,26 +38,19 @@ where
     T: InvoiceHelper + Sync + Send + Clone + 'static,
     E: InvoiceEncoder + Sync + Send + Clone + 'static,
 {
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         host: &str,
         port: i64,
         is_regtest: bool,
         cancellation_token: CancellationToken,
         directory: PathBuf,
-        our_id: [u8; 33],
-        invoice_helper: T,
-        encoder: E,
-        settler: Settler<T>,
+        state: State<T, E>,
     ) -> Self {
         Self {
             port,
-            our_id,
-            settler,
-            encoder,
+            state,
             directory,
             is_regtest,
-            invoice_helper,
             cancellation_token,
             host: host.to_string(),
         }
@@ -88,10 +88,11 @@ where
 
         Ok(server
             .add_service(HoldServer::new(HoldService::new(
-                self.our_id,
-                self.invoice_helper.clone(),
-                self.encoder.clone(),
-                self.settler.clone(),
+                self.state.our_id,
+                self.state.invoice_helper.clone(),
+                self.state.encoder.clone(),
+                self.state.settler.clone(),
+                self.state.onion_msg_rx.clone(),
             )))
             .serve_with_shutdown(socket_addr, async move {
                 self.cancellation_token.cancelled().await;
@@ -106,7 +107,7 @@ mod test {
     use crate::database::helpers::invoice_helper::InvoiceHelper;
     use crate::database::model::*;
     use crate::encoder::{InvoiceBuilder, InvoiceEncoder};
-    use crate::grpc::server::Server;
+    use crate::grpc::server::{Server, State};
     use crate::grpc::service::hold::hold_client::HoldClient;
     use crate::grpc::service::hold::GetInfoRequest;
     use crate::settler::Settler;
@@ -114,7 +115,9 @@ mod test {
     use mockall::mock;
     use std::fs;
     use std::path::{Path, PathBuf};
+    use std::sync::Arc;
     use std::time::Duration;
+    use tokio::sync::broadcast;
     use tokio::task::JoinHandle;
     use tokio_util::sync::CancellationToken;
     use tonic::async_trait;
@@ -244,16 +247,20 @@ mod test {
 
         let token = CancellationToken::new();
 
+        let (_, rx) = broadcast::channel(1);
         let server = Server::new(
             "127.0.0.1",
             port,
             false,
             token.clone(),
             certs_dir.clone(),
-            [0; 33],
-            make_mock_invoice_helper(),
-            make_mock_invoice_encoder(),
-            Settler::new(make_mock_invoice_helper(), 60),
+            State {
+                our_id: [0; 33],
+                encoder: make_mock_invoice_encoder(),
+                invoice_helper: make_mock_invoice_helper(),
+                settler: Settler::new(make_mock_invoice_helper(), 60),
+                onion_msg_rx: Arc::new(rx),
+            },
         );
 
         let server_thread = tokio::spawn(async move {

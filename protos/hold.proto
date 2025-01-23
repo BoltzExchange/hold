@@ -18,6 +18,8 @@ service Hold {
 
   rpc Track (TrackRequest) returns (stream TrackResponse) {}
   rpc TrackAll (TrackAllRequest) returns (stream TrackAllResponse) {}
+
+  rpc OnionMessages (OnionMessagesRequest) returns (stream OnionMessage) {}
 }
 
 message GetInfoRequest {}
@@ -138,4 +140,32 @@ message TrackAllResponse {
   bytes payment_hash = 1;
   string bolt11 = 2;
   InvoiceState state = 3;
+}
+
+message OnionMessagesRequest {}
+message OnionMessage {
+  message ReplyBlindedPath {
+    message Hop {
+      optional bytes blinded_node_id = 1;
+      optional bytes encrypted_recipient_data = 2;
+    }
+
+    optional bytes first_node_id = 1;
+    optional string first_scid = 2;
+    optional uint64 first_scid_dir = 3;
+    optional bytes blinded = 4;
+    repeated Hop hops = 5;
+  }
+
+  message UnknownField {
+    uint64 number = 1;
+    bytes value = 2;
+  }
+
+  optional bytes pathsecret = 1;
+  optional ReplyBlindedPath reply_blindedpath = 2;
+  optional bytes invoice_request = 3;
+  optional bytes invoice = 4;
+  optional bytes invoice_error = 5;
+  repeated UnknownField unknown_fields = 6;
 }

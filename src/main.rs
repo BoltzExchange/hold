@@ -9,6 +9,8 @@ use cln_rpc::ClnRpc;
 use log::{debug, error, info, warn};
 use std::fs;
 use std::path::Path;
+use std::sync::Arc;
+use tokio::sync::broadcast;
 use tokio_util::sync::CancellationToken;
 
 mod commands;
@@ -29,6 +31,7 @@ struct State<T, E> {
     settler: Settler<T>,
     encoder: E,
     invoice_helper: T,
+    onion_msg_tx: broadcast::Sender<hooks::OnionMessage>,
 }
 
 #[tokio::main]
@@ -56,6 +59,12 @@ async fn main() -> Result<()> {
         .option(OPTION_GRPC_HOST)
         .option(OPTION_GRPC_PORT)
         .hook("htlc_accepted", hooks::htlc_accepted)
+        // TODO: do we need to stop the offers plugin of CLN itself
+        .hook("onion_message_recv", hooks::onion_message_recv)
+        .hook(
+            "onion_message_recv_secret",
+            hooks::onion_message_recv_secret,
+        )
         .rpcmethod_from_builder(
             RpcMethodBuilder::new("listholdinvoices", commands::list_invoices)
                 .description("Lists hold invoices")
@@ -184,9 +193,12 @@ async fn main() -> Result<()> {
         .id
         .serialize();
 
+    let (onion_msg_tx, onion_msg_rx) = broadcast::channel(1024);
+
     let plugin = plugin
         .start(State {
             our_id,
+            onion_msg_tx,
             encoder: encoder.clone(),
             settler: settler.clone(),
             invoice_helper: invoice_helper.clone(),
@@ -202,10 +214,13 @@ async fn main() -> Result<()> {
         is_regtest,
         cancellation_token.clone(),
         std::env::current_dir()?.join(utils::built_info::PKG_NAME),
-        our_id,
-        invoice_helper,
-        encoder,
-        settler.clone(),
+        grpc::server::State {
+            our_id,
+            encoder,
+            invoice_helper,
+            settler: settler.clone(),
+            onion_msg_rx: Arc::new(onion_msg_rx),
+        },
     );
 
     tokio::spawn(async move {

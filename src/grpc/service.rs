@@ -7,7 +7,8 @@ use crate::grpc::service::hold::list_request::Constraint;
 use crate::grpc::service::hold::{
     CancelRequest, CancelResponse, CleanRequest, CleanResponse, GetInfoRequest, GetInfoResponse,
     InjectRequest, InjectResponse, InvoiceRequest, InvoiceResponse, ListRequest, ListResponse,
-    SettleRequest, SettleResponse, TrackAllRequest, TrackAllResponse, TrackRequest, TrackResponse,
+    OnionMessage, OnionMessagesRequest, SettleRequest, SettleResponse, TrackAllRequest,
+    TrackAllResponse, TrackRequest, TrackResponse,
 };
 use crate::grpc::transformers::{transform_invoice_state, transform_route_hints};
 use crate::invoice::Invoice;
@@ -17,7 +18,8 @@ use log::{debug, error, warn};
 use std::collections::HashMap;
 use std::pin::Pin;
 use std::str::FromStr;
-use tokio::sync::mpsc;
+use std::sync::Arc;
+use tokio::sync::{broadcast, mpsc};
 use tonic::codegen::tokio_stream::wrappers::ReceiverStream;
 use tonic::codegen::tokio_stream::Stream;
 use tonic::{async_trait, Code, Request, Response, Status};
@@ -31,6 +33,7 @@ pub struct HoldService<T, E> {
     encoder: E,
     invoice_helper: T,
     settler: Settler<T>,
+    onion_msg_rx: Arc<broadcast::Receiver<crate::hooks::OnionMessage>>,
 }
 
 impl<T, E> HoldService<T, E>
@@ -38,11 +41,18 @@ where
     T: InvoiceHelper + Send + Sync + Clone + 'static,
     E: InvoiceEncoder + Send + Sync + Clone + 'static,
 {
-    pub fn new(our_id: [u8; 33], invoice_helper: T, encoder: E, settler: Settler<T>) -> Self {
+    pub fn new(
+        our_id: [u8; 33],
+        invoice_helper: T,
+        encoder: E,
+        settler: Settler<T>,
+        onion_msg_rx: Arc<broadcast::Receiver<crate::hooks::OnionMessage>>,
+    ) -> Self {
         HoldService {
             our_id,
             encoder,
             settler,
+            onion_msg_rx,
             invoice_helper,
         }
     }
@@ -432,6 +442,43 @@ where
                     }
                     Err(err) => {
                         error!("Waiting for all invoices state updates failed: {}", err);
+                        break;
+                    }
+                }
+            }
+        });
+
+        Ok(Response::new(Box::pin(ReceiverStream::new(rx))))
+    }
+
+    type OnionMessagesStream = Pin<Box<dyn Stream<Item = Result<OnionMessage, Status>> + Send>>;
+
+    async fn onion_messages(
+        &self,
+        _request: Request<OnionMessagesRequest>,
+    ) -> Result<Response<Self::OnionMessagesStream>, Status> {
+        let (tx, rx) = mpsc::channel(128);
+        let mut onion_rx = self.onion_msg_rx.resubscribe();
+
+        tokio::spawn(async move {
+            loop {
+                match onion_rx.recv().await {
+                    Ok(msg) => {
+                        let msg: OnionMessage = match msg.try_into() {
+                            Ok(msg) => msg,
+                            Err(err) => {
+                                error!("Failed to convert onion message: {}", err);
+                                break;
+                            }
+                        };
+
+                        if let Err(err) = tx.send(Ok(msg)).await {
+                            error!("Failed to send onion message: {}", err);
+                            break;
+                        }
+                    }
+                    Err(err) => {
+                        error!("Waiting for onion messages failed: {}", err);
                         break;
                     }
                 }
