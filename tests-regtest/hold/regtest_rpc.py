@@ -11,8 +11,8 @@ def check_unpaid_invoice(
 ) -> None:
     assert entry is not None
     assert entry["payment_hash"] == payment_hash
-    assert entry["preimage"] is None
-    assert entry["bolt11"] == invoice
+    assert "preimage" not in entry
+    assert entry["invoice"] == invoice
     assert entry["state"] == "unpaid"
     assert len(entry["htlcs"]) == 0
 
@@ -39,9 +39,23 @@ class TestRpc:
 
         assert len(list_all) > 1
 
-        entry = next(e for e in list_all if e["bolt11"] == invoice)
+        entry = next(e for e in list_all if e["invoice"] == invoice)
         assert entry is not None
         check_unpaid_invoice(entry, payment_hash, invoice)
+
+    def test_inject(self) -> None:
+        (_, entropy) = new_preimage()
+        invoice = lightning("invoice", 1000, entropy, entropy)["bolt11"]
+        payment_hash = lightning("decode", invoice)["payment_hash"]
+
+        lightning("injectholdinvoice", invoice)
+
+        list_res = lightning("listholdinvoices", payment_hash)["holdinvoices"]
+
+        assert len(list_res) == 1
+        assert list_res[0]["invoice"] == invoice
+        assert list_res[0]["payment_hash"] == payment_hash
+        check_unpaid_invoice(list_res[0], payment_hash, invoice)
 
     def test_list_payment_hash(self) -> None:
         (_, payment_hash) = new_preimage()

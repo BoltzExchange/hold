@@ -10,7 +10,7 @@ pub struct Invoice {
     pub id: i64,
     pub payment_hash: Vec<u8>,
     pub preimage: Option<Vec<u8>>,
-    pub bolt11: String,
+    pub invoice: String,
     pub state: String,
     pub created_at: chrono::NaiveDateTime,
     pub settled_at: Option<chrono::NaiveDateTime>,
@@ -20,7 +20,7 @@ pub struct Invoice {
 #[diesel(table_name = crate::database::schema::invoices)]
 pub struct InvoiceInsertable {
     pub payment_hash: Vec<u8>,
-    pub bolt11: String,
+    pub invoice: String,
     pub state: String,
 }
 
@@ -276,31 +276,19 @@ mod test {
 
     #[test]
     fn invoice_state_validate() {
-        assert_eq!(
-            InvoiceState::Unpaid
-                .validate_transition(InvoiceState::Accepted)
-                .unwrap(),
-            (),
-        );
-        assert_eq!(
-            InvoiceState::Unpaid
-                .validate_transition(InvoiceState::Cancelled)
-                .unwrap(),
-            ()
-        );
+        assert!(InvoiceState::Unpaid
+            .validate_transition(InvoiceState::Accepted)
+            .is_ok());
+        assert!(InvoiceState::Unpaid
+            .validate_transition(InvoiceState::Cancelled)
+            .is_ok());
 
-        assert_eq!(
-            InvoiceState::Accepted
-                .validate_transition(InvoiceState::Paid)
-                .unwrap(),
-            (),
-        );
-        assert_eq!(
-            InvoiceState::Unpaid
-                .validate_transition(InvoiceState::Cancelled)
-                .unwrap(),
-            ()
-        );
+        assert!(InvoiceState::Accepted
+            .validate_transition(InvoiceState::Paid)
+            .is_ok());
+        assert!(InvoiceState::Unpaid
+            .validate_transition(InvoiceState::Cancelled)
+            .is_ok());
     }
 
     #[test]
@@ -356,7 +344,7 @@ mod test {
                 id: 0,
                 payment_hash: vec![],
                 preimage: None,
-                bolt11: "".to_string(),
+                invoice: "".to_string(),
                 state: "".to_string(),
                 created_at: Default::default(),
                 settled_at: None,
@@ -406,7 +394,7 @@ mod test {
                 id: 0,
                 payment_hash: vec![],
                 preimage: None,
-                bolt11: "".to_string(),
+                invoice: "".to_string(),
                 state: "".to_string(),
                 created_at: Default::default(),
                 settled_at: None,

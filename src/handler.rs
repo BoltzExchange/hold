@@ -1,9 +1,9 @@
 use crate::database::helpers::invoice_helper::InvoiceHelper;
 use crate::database::model::{HoldInvoice, HtlcInsertable, InvoiceState};
-use crate::hooks::{FailureMessage, HtlcCallbackRequest, HtlcCallbackResponse};
+use crate::hooks::htlc_accepted::{FailureMessage, HtlcCallbackRequest, HtlcCallbackResponse};
+use crate::invoice::Invoice;
 use crate::settler::{Resolver, Settler};
 use anyhow::Result;
-use lightning_invoice::Bolt11Invoice;
 use log::{debug, error, info, warn};
 use std::str::FromStr;
 use std::sync::Arc;
@@ -85,11 +85,11 @@ where
             );
         }
 
-        let invoice_decoded = Bolt11Invoice::from_str(&invoice.invoice.bolt11)?;
+        let invoice_decoded = Invoice::from_str(&invoice.invoice.invoice)?;
 
-        {
-            let payment_secret = args.onion.payment_secret.clone().unwrap_or("".to_string());
-            if payment_secret != hex::encode(invoice_decoded.payment_secret().0) {
+        if let Some(payment_secret) = invoice_decoded.payment_secret() {
+            let htlc_secret = args.onion.payment_secret.clone().unwrap_or("".to_string());
+            if htlc_secret != hex::encode(payment_secret) {
                 return self.reject_htlc(
                     &invoice,
                     &args,
@@ -212,7 +212,9 @@ mod test {
         HoldInvoice, HtlcInsertable, Invoice, InvoiceInsertable, InvoiceState,
     };
     use crate::handler::{Handler, Resolution};
-    use crate::hooks::{FailureMessage, Htlc, HtlcCallbackRequest, HtlcCallbackResponse, Onion};
+    use crate::hooks::htlc_accepted::{
+        FailureMessage, Htlc, HtlcCallbackRequest, HtlcCallbackResponse, Onion,
+    };
     use crate::settler::Settler;
     use anyhow::Result;
     use lightning_invoice::Bolt11Invoice;
@@ -278,7 +280,6 @@ mod test {
                     cltv_expiry_relative: 0,
                     payment_hash: "00".to_string(),
                 },
-                forward_to: None,
             })
             .await;
 
@@ -287,7 +288,7 @@ mod test {
                 assert_eq!(res, HtlcCallbackResponse::Continue);
             }
             Resolution::Resolver(_) => {
-                assert!(false);
+                unreachable!();
             }
         };
     }
@@ -302,7 +303,7 @@ mod test {
                     preimage: None,
                     settled_at: None,
                     payment_hash: vec![],
-                    bolt11: "".to_string(),
+                    invoice: "".to_string(),
                     created_at: Default::default(),
                     state: InvoiceState::Paid.to_string(),
                 },
@@ -324,7 +325,6 @@ mod test {
                     cltv_expiry_relative: 0,
                     payment_hash: "00".to_string(),
                 },
-                forward_to: None,
             })
             .await;
 
@@ -338,7 +338,7 @@ mod test {
                 );
             }
             Resolution::Resolver(_) => {
-                assert!(false);
+                unreachable!();
             }
         };
     }
@@ -353,7 +353,7 @@ mod test {
                     preimage: None,
                     settled_at: None,
                     payment_hash: vec![],
-                    bolt11: INVOICE.to_string(),
+                    invoice: INVOICE.to_string(),
                     state: InvoiceState::Unpaid.to_string(),
                     created_at: Default::default(),
                 },
@@ -384,7 +384,6 @@ mod test {
                     cltv_expiry_relative: 0,
                     payment_hash: "00".to_string(),
                 },
-                forward_to: None,
             })
             .await;
 
@@ -398,7 +397,7 @@ mod test {
                 );
             }
             Resolution::Resolver(_) => {
-                assert!(false);
+                unreachable!();
             }
         };
     }
@@ -413,7 +412,7 @@ mod test {
                     preimage: None,
                     settled_at: None,
                     payment_hash: vec![],
-                    bolt11: INVOICE.to_string(),
+                    invoice: INVOICE.to_string(),
                     state: InvoiceState::Unpaid.to_string(),
                     created_at: Default::default(),
                 },
@@ -447,7 +446,6 @@ mod test {
                     cltv_expiry_relative: 2,
                     payment_hash: "00".to_string(),
                 },
-                forward_to: None,
             })
             .await;
 
@@ -461,7 +459,7 @@ mod test {
                 );
             }
             Resolution::Resolver(_) => {
-                assert!(false);
+                unreachable!();
             }
         };
     }
@@ -476,7 +474,7 @@ mod test {
                     preimage: None,
                     settled_at: None,
                     payment_hash: vec![],
-                    bolt11: INVOICE.to_string(),
+                    invoice: INVOICE.to_string(),
                     state: InvoiceState::Unpaid.to_string(),
                     created_at: Default::default(),
                 },
@@ -510,7 +508,6 @@ mod test {
                     cltv_expiry_relative: 18,
                     payment_hash: "00".to_string(),
                 },
-                forward_to: None,
             })
             .await;
 
@@ -524,7 +521,7 @@ mod test {
                 );
             }
             Resolution::Resolver(_) => {
-                assert!(false);
+                unreachable!();
             }
         };
     }
@@ -542,7 +539,7 @@ mod test {
                     id: 0,
                     preimage: None,
                     settled_at: None,
-                    bolt11: INVOICE.to_string(),
+                    invoice: INVOICE.to_string(),
                     created_at: Default::default(),
                     payment_hash: payment_hash_cp.clone(),
                     state: InvoiceState::Unpaid.to_string(),
@@ -563,7 +560,7 @@ mod test {
                         id: 0,
                         preimage: None,
                         settled_at: None,
-                        bolt11: INVOICE.to_string(),
+                        invoice: INVOICE.to_string(),
                         created_at: Default::default(),
                         state: InvoiceState::Unpaid.to_string(),
                         payment_hash: payment_hash_cp_settler.clone(),
@@ -606,13 +603,12 @@ mod test {
                     cltv_expiry_relative: 18,
                     payment_hash: hex::encode(payment_hash.clone()),
                 },
-                forward_to: None,
             })
             .await;
 
         match res {
             Resolution::Resolution(_) => {
-                assert!(false);
+                unreachable!();
             }
             Resolution::Resolver(res) => {
                 let preimage = &hex::decode("0011").unwrap();
