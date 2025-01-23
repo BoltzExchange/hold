@@ -20,6 +20,8 @@ from hold.protos.hold_pb2 import (
     InvoiceState,
     ListRequest,
     ListResponse,
+    OnionMessage,
+    OnionMessagesRequest,
     RoutingHint,
     SettleRequest,
     TrackAllRequest,
@@ -514,3 +516,24 @@ class TestGrpc:
                 (payment_hash_settled, invoice_settled.bolt11, InvoiceState.ACCEPTED),
                 (payment_hash_settled, invoice_settled.bolt11, InvoiceState.PAID),
             ]
+
+    def test_onion_messages(self, cl: HoldStub) -> None:
+        offer = lightning("offer", "any", "msg", node=1)["bolt12"]
+
+        def track_messages() -> OnionMessage | None:
+            sub = cl.OnionMessages(OnionMessagesRequest())
+            for msg in sub:
+                sub.cancel()
+                return msg
+
+            return None
+
+        with concurrent.futures.ThreadPoolExecutor() as pool:
+            fut = pool.submit(track_messages)
+
+            fetched_invoice = lightning("fetchinvoice", offer, 1_000)
+            assert "invoice" in fetched_invoice
+
+            msg = fut.result()
+            assert msg.pathsecret is not None
+            assert msg.invoice is not None

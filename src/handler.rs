@@ -1,6 +1,6 @@
 use crate::database::helpers::invoice_helper::InvoiceHelper;
 use crate::database::model::{HoldInvoice, HtlcInsertable, InvoiceState};
-use crate::hooks::{FailureMessage, HtlcCallbackRequest, HtlcCallbackResponse};
+use crate::hooks::htlc_accepted::{FailureMessage, HtlcCallbackRequest, HtlcCallbackResponse};
 use crate::invoice::Invoice;
 use crate::settler::{Resolver, Settler};
 use anyhow::Result;
@@ -212,7 +212,9 @@ mod test {
         HoldInvoice, HtlcInsertable, Invoice, InvoiceInsertable, InvoiceState,
     };
     use crate::handler::{Handler, Resolution};
-    use crate::hooks::{FailureMessage, Htlc, HtlcCallbackRequest, HtlcCallbackResponse, Onion};
+    use crate::hooks::htlc_accepted::{
+        FailureMessage, Htlc, HtlcCallbackRequest, HtlcCallbackResponse, Onion,
+    };
     use crate::settler::Settler;
     use anyhow::Result;
     use lightning_invoice::Bolt11Invoice;

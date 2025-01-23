@@ -1,6 +1,6 @@
 use crate::database::helpers::invoice_helper::InvoiceHelper;
 use crate::database::model::{HoldInvoice, Invoice, InvoiceState};
-use crate::hooks::{FailureMessage, HtlcCallbackResponse};
+use crate::hooks::htlc_accepted::{FailureMessage, HtlcCallbackResponse};
 use anyhow::Result;
 use log::{info, trace, warn};
 use std::collections::HashMap;
