@@ -1,9 +1,11 @@
+use diesel::connection::SimpleConnection;
 use diesel::prelude::*;
 use diesel::r2d2::ConnectionManager;
 use diesel::{r2d2, PgConnection, SqliteConnection};
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use log::{debug, info, trace};
 use std::error::Error;
+use std::time::Duration;
 
 pub mod helpers;
 pub mod model;
@@ -19,6 +21,28 @@ pub enum AnyConnection {
     Sqlite(SqliteConnection),
 }
 
+#[derive(Debug)]
+pub struct ConnectionOptions {
+    pub busy_timeout: Option<Duration>,
+}
+
+impl diesel::r2d2::CustomizeConnection<AnyConnection, diesel::r2d2::Error> for ConnectionOptions {
+    fn on_acquire(&self, conn: &mut AnyConnection) -> Result<(), diesel::r2d2::Error> {
+        (|| {
+            match conn {
+                AnyConnection::Sqlite(conn) => {
+                    if let Some(d) = self.busy_timeout {
+                        conn.batch_execute(&format!("PRAGMA busy_timeout = {};", d.as_millis()))?;
+                    }
+                }
+                _ => {}
+            }
+            Ok(())
+        })()
+        .map_err(diesel::r2d2::Error::QueryError)
+    }
+}
+
 pub type Pool = r2d2::Pool<ConnectionManager<AnyConnection>>;
 
 pub fn connect(url: &str) -> Result<Pool, Box<dyn Error + Send + Sync>> {
@@ -30,7 +54,11 @@ pub fn connect(url: &str) -> Result<Pool, Box<dyn Error + Send + Sync>> {
 
     debug!("Connecting to {} database", db_name);
     let manager: ConnectionManager<AnyConnection> = ConnectionManager::new(url);
-    let pool = Pool::builder().build(manager)?;
+    let pool = Pool::builder()
+        .connection_customizer(Box::new(ConnectionOptions {
+            busy_timeout: Some(Duration::from_secs(5)),
+        }))
+        .build(manager)?;
 
     info!("Connected to {} database", db_name);
 
