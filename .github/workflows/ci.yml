@@ -1,14 +1,14 @@
 name: CI
 
-on: [ push, pull_request ]
+on: [push, pull_request]
 
 jobs:
   build:
     strategy:
       matrix:
-        platform: [ ubuntu-latest ]
-        python-version: [ '3.10' ]
-        rust-version: [ stable, nightly ]
+        platform: [ubuntu-latest]
+        python-version: ["3.10"]
+        rust-version: [stable, nightly]
 
     runs-on: ${{ matrix.platform }}
 
@@ -17,7 +17,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install build dependencies
-        run: sudo apt-get update && sudo apt-get -y install protobuf-compiler
+        run: sudo apt-get update && sudo apt-get -y install protobuf-compiler libsqlite3-dev
 
       - name: Use Rust toolchain
         run: rustup update ${{ matrix.rust-version }} && rustup default ${{ matrix.rust-version }}
@@ -35,7 +35,7 @@ jobs:
         run: cargo fmt --check
 
       - name: Clippy
-        run: cargo clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
 
       - name: Unit tests
         run: cargo test

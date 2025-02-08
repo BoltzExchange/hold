@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import concurrent.futures
 import time
+from datetime import datetime, timezone
 
+import bolt11
 import pytest
 
 from hold.protos.hold_pb2 import (
@@ -11,19 +13,29 @@ from hold.protos.hold_pb2 import (
     GetInfoRequest,
     GetInfoResponse,
     Hop,
+    InjectRequest,
     Invoice,
     InvoiceRequest,
     InvoiceResponse,
     InvoiceState,
     ListRequest,
     ListResponse,
+    OnionMessage,
+    OnionMessagesRequest,
     RoutingHint,
     SettleRequest,
     TrackAllRequest,
     TrackRequest,
 )
 from hold.protos.hold_pb2_grpc import HoldStub
-from hold.utils import LndPay, hold_client, lightning, new_preimage_bytes, time_now
+from hold.utils import (
+    LndPay,
+    hold_client,
+    lightning,
+    new_preimage,
+    new_preimage_bytes,
+    time_now,
+)
 
 
 class TestGrpc:
@@ -194,6 +206,61 @@ class TestGrpc:
                 assert decoded_hop["fee_proportional_millionths"] == hint.ppm_fee
                 assert decoded_hop["cltv_expiry_delta"] == hint.cltv_expiry_delta
 
+    def test_inject(self, cl: HoldStub) -> None:
+        features = bolt11.Features.from_feature_list(
+            {
+                bolt11.Feature.var_onion_optin: bolt11.FeatureState.required,
+                bolt11.Feature.payment_secret: bolt11.FeatureState.required,
+                bolt11.Feature.basic_mpp: bolt11.FeatureState.supported,
+            }
+        )
+
+        preimage, payment_hash = new_preimage_bytes()
+        invoice = bolt11.encode(
+            bolt11.Bolt11(
+                "bcrt",
+                datetime.now(tz=timezone.utc).timestamp(),
+                bolt11.Tags(
+                    [
+                        bolt11.Tag(
+                            bolt11.TagChar.payment_hash,
+                            payment_hash.hex(),
+                        ),
+                        bolt11.Tag(
+                            bolt11.TagChar.payment_secret,
+                            new_preimage()[0],
+                        ),
+                        bolt11.Tag(
+                            bolt11.TagChar.description,
+                            "",
+                        ),
+                        bolt11.Tag(
+                            bolt11.TagChar.features,
+                            features,
+                        ),
+                    ]
+                ),
+                bolt11.MilliSatoshi(21_000),
+            ),
+            "d5563f4911490c03d82efdc5d8b52d00f4a894936bb4ec964f18a9fce3de9ff4",
+        )
+        invoice = lightning("signinvoice", invoice)["bolt11"]
+
+        cl.Inject(InjectRequest(invoice=invoice))
+
+        pay = LndPay(1, invoice)
+        pay.start()
+        time.sleep(1)
+
+        state = cl.List(ListRequest(payment_hash=payment_hash)).invoices[0].state
+        assert state == InvoiceState.ACCEPTED
+
+        cl.Settle(SettleRequest(payment_preimage=preimage))
+        pay.join()
+
+        state = cl.List(ListRequest(payment_hash=payment_hash)).invoices[0].state
+        assert state == InvoiceState.PAID
+
     def test_list_all(self, cl: HoldStub) -> None:
         cl.Invoice(InvoiceRequest(payment_hash=new_preimage_bytes()[1], amount_msat=1))
 
@@ -209,7 +276,7 @@ class TestGrpc:
         hold_list: ListResponse = cl.List(ListRequest(payment_hash=payment_hash))
         assert len(hold_list.invoices) == 1
 
-        assert hold_list.invoices[0].bolt11 == invoice.bolt11
+        assert hold_list.invoices[0].invoice == invoice.bolt11
         assert hold_list.invoices[0].payment_hash == payment_hash
 
     def test_list_payment_hash_not_found(self, cl: HoldStub) -> None:
@@ -449,3 +516,24 @@ class TestGrpc:
                 (payment_hash_settled, invoice_settled.bolt11, InvoiceState.ACCEPTED),
                 (payment_hash_settled, invoice_settled.bolt11, InvoiceState.PAID),
             ]
+
+    def test_onion_messages(self, cl: HoldStub) -> None:
+        offer = lightning("offer", "any", "msg", node=1)["bolt12"]
+
+        def track_messages() -> OnionMessage | None:
+            sub = cl.OnionMessages(OnionMessagesRequest())
+            for msg in sub:
+                sub.cancel()
+                return msg
+
+            return None
+
+        with concurrent.futures.ThreadPoolExecutor() as pool:
+            fut = pool.submit(track_messages)
+
+            fetched_invoice = lightning("fetchinvoice", offer, 1_000)
+            assert "invoice" in fetched_invoice
+
+            msg = fut.result()
+            assert msg.pathsecret is not None
+            assert msg.invoice is not None
