@@ -253,7 +253,6 @@ mod test {
 
         let server_thread = tokio::spawn(async move {
             server.start().await.unwrap();
-            ()
         });
         tokio::time::sleep(Duration::from_millis(50)).await;
 

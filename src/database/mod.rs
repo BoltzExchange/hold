@@ -29,13 +29,10 @@ pub struct ConnectionOptions {
 impl diesel::r2d2::CustomizeConnection<AnyConnection, diesel::r2d2::Error> for ConnectionOptions {
     fn on_acquire(&self, conn: &mut AnyConnection) -> Result<(), diesel::r2d2::Error> {
         (|| {
-            match conn {
-                AnyConnection::Sqlite(conn) => {
-                    if let Some(d) = self.busy_timeout {
-                        conn.batch_execute(&format!("PRAGMA busy_timeout = {};", d.as_millis()))?;
-                    }
+            if let AnyConnection::Sqlite(conn) = conn {
+                if let Some(d) = self.busy_timeout {
+                    conn.batch_execute(&format!("PRAGMA busy_timeout = {};", d.as_millis()))?;
                 }
-                _ => {}
             }
             Ok(())
         })()
