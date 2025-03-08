@@ -287,7 +287,7 @@ mod test {
                 assert_eq!(res, HtlcCallbackResponse::Continue);
             }
             Resolution::Resolver(_) => {
-                assert!(false);
+                unreachable!();
             }
         };
     }
@@ -338,7 +338,7 @@ mod test {
                 );
             }
             Resolution::Resolver(_) => {
-                assert!(false);
+                unreachable!();
             }
         };
     }
@@ -398,7 +398,7 @@ mod test {
                 );
             }
             Resolution::Resolver(_) => {
-                assert!(false);
+                unreachable!();
             }
         };
     }
@@ -461,7 +461,7 @@ mod test {
                 );
             }
             Resolution::Resolver(_) => {
-                assert!(false);
+                unreachable!();
             }
         };
     }
@@ -524,7 +524,7 @@ mod test {
                 );
             }
             Resolution::Resolver(_) => {
-                assert!(false);
+                unreachable!();
             }
         };
     }
@@ -612,7 +612,7 @@ mod test {
 
         match res {
             Resolution::Resolution(_) => {
-                assert!(false);
+                unreachable!();
             }
             Resolution::Resolver(res) => {
                 let preimage = &hex::decode("0011").unwrap();

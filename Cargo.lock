@@ -840,7 +840,7 @@ checksum = "3011d1213f159867b13cfd6ac92d2cd5f1345762c63be3554e84092d85a50bbd"
 
 [[package]]
 name = "hold"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "anyhow",
  "bitcoin 0.32.5",

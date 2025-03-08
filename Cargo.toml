@@ -1,6 +1,6 @@
 [package]
 name = "hold"
-version = "0.2.1"
+version = "0.2.2"
 edition = "2021"
 license = "MIT"
 build = "build.rs"
@@ -16,7 +16,12 @@ panic = "abort"
 [dependencies]
 anyhow = "1.0.95"
 cln-plugin = "0.3.0"
-diesel = { version = "2.2.6", features = ["postgres", "r2d2", "chrono", "sqlite"] }
+diesel = { version = "2.2.6", features = [
+    "postgres",
+    "r2d2",
+    "chrono",
+    "sqlite",
+] }
 diesel_migrations = "2.2.0"
 log = { version = "0.4.22", features = [] }
 prost = "0.13.4"
