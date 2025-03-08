@@ -3,6 +3,21 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 ---
+## [0.2.2](https://github.com/BoltzExchange/hold/compare/v0.2.1..v0.2.2) - 2025-03-08
+
+### Bug Fixes
+
+- set SQLite busy_timeout - ([6c6fdd9](https://github.com/BoltzExchange/hold/commit/6c6fdd9cdd268cae4a95226c0bd227b731a362cd))
+- double event race condition - ([9048b7f](https://github.com/BoltzExchange/hold/commit/9048b7f5579ef15e530d1b8309765c5adad93ade))
+
+### Miscellaneous Chores
+
+- **(deps)** bump ring from 0.17.8 to 0.17.13 (#14) - ([07f69e7](https://github.com/BoltzExchange/hold/commit/07f69e75b68ac2b670ce6ebcdf064cf3cf3271a6))
+- bump regtest - ([4cccfdd](https://github.com/BoltzExchange/hold/commit/4cccfddb2bae083e05b68867cfd3867ebcbcaf34))
+- stricter clippy rules - ([0c90f8e](https://github.com/BoltzExchange/hold/commit/0c90f8e206776ce2ccc9b58594285ae990aa9a23))
+- bump version v0.2.2 - ([0e9126a](https://github.com/BoltzExchange/hold/commit/0e9126a70a09ef009e82071df00d6c52d7f979bb))
+
+---
 ## [0.2.1](https://github.com/BoltzExchange/hold/compare/v0.2.0..v0.2.1) - 2024-12-30
 
 ### Features
@@ -13,6 +28,7 @@ All notable changes to this project will be documented in this file. See [conven
 
 - minor dependency updates (#9) - ([6004385](https://github.com/BoltzExchange/hold/commit/6004385bf0b7382aab7824cbadd251ba17e6a962))
 - bump minor dependencies (#10) - ([b6d362d](https://github.com/BoltzExchange/hold/commit/b6d362d92c65dc0156b354ee834c6a5ff11c9da6))
+- add CHANGELOG.md - ([945bca9](https://github.com/BoltzExchange/hold/commit/945bca9779cff2c91631a0e9b4246545069206cf))
 
 ---
 ## [0.2.0](https://github.com/BoltzExchange/hold/compare/v0.1.2..v0.2.0) - 2024-11-07
