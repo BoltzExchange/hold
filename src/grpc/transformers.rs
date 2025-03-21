@@ -107,7 +107,7 @@ impl TryFrom<OnionMessage> for hold::OnionMessage {
                             first_node_id: hex_from_str(p.first_node_id)?,
                             first_scid: p.first_scid,
                             first_scid_dir: p.first_scid_dir,
-                            blinded: hex_from_str(p.blinding)?,
+                            first_path_key: hex_from_str(p.first_path_key)?,
                             hops: p
                                 .hops
                                 .into_iter()

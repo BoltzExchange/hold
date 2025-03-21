@@ -18,7 +18,7 @@ pub struct ReplyBlindedPath {
     pub first_node_id: Option<String>,
     pub first_scid: Option<String>,
     pub first_scid_dir: Option<u64>,
-    pub blinding: Option<String>,
+    pub first_path_key: Option<String>,
     pub hops: Vec<BlindedPathHops>,
 }
 
