@@ -9,7 +9,7 @@ use std::fmt::{Display, Formatter};
 use std::ops::Sub;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
-use tokio::sync::{broadcast, oneshot, Mutex};
+use tokio::sync::{Mutex, broadcast, oneshot};
 use tokio::time;
 
 const MPP_INTERVAL_SECONDS: u64 = 15;

@@ -1,5 +1,5 @@
-use anyhow::{anyhow, Error, Result};
-use bech32::FromBase32;
+use anyhow::{Error, Result, anyhow};
+use bech32::{NoChecksum, primitives::decode::CheckedHrpstring};
 use bitcoin::hashes::Hash;
 use lightning::{blinded_path::IntroductionNode, offers::invoice::Bolt12Invoice};
 use lightning_invoice::Bolt11Invoice;
@@ -107,13 +107,14 @@ impl FromStr for Invoice {
 }
 
 fn decode_bolt12_invoice(invoice: &str) -> Result<Invoice> {
-    let (hrp, data) = bech32::decode_without_checksum(invoice)?;
-    if hrp != BECH32_BOLT12_INVOICE_HRP {
+    let dec = CheckedHrpstring::new::<NoChecksum>(invoice)?;
+    if dec.hrp().to_lowercase() != BECH32_BOLT12_INVOICE_HRP {
         return Err(anyhow!("invalid HRP"));
     }
 
+    let data = dec.byte_iter().collect::<Vec<_>>();
     Ok(Invoice::Bolt12(Box::new(
-        Bolt12Invoice::try_from(Vec::<u8>::from_base32(&data)?).map_err(|e| anyhow!("{:?}", e))?,
+        Bolt12Invoice::try_from(data).map_err(|e| anyhow!("{:?}", e))?,
     )))
 }
 
@@ -170,10 +171,12 @@ mod test {
             ),
             "3d4358d6d287d3f7c5f0bb830f526c257f9052da0c18d34eb6140d29857fd8e3"
         );
-        assert!(Invoice::from_str(BOLT12_INVOICE)
-            .unwrap()
-            .payment_secret()
-            .is_none());
+        assert!(
+            Invoice::from_str(BOLT12_INVOICE)
+                .unwrap()
+                .payment_secret()
+                .is_none()
+        );
     }
 
     #[test]
@@ -214,69 +217,83 @@ mod test {
 
         let invoice = Invoice::from_str(BOLT11_ROUTING_HINT).unwrap();
 
-        assert!(invoice.related_to_node(
-            PublicKey::from_str(
-                "0367d0a9bdc0e3d410379223e4b930806c3a2f4ee4e2c9811973f1170b52ab5159",
+        assert!(
+            invoice.related_to_node(
+                PublicKey::from_str(
+                    "0367d0a9bdc0e3d410379223e4b930806c3a2f4ee4e2c9811973f1170b52ab5159",
+                )
+                .unwrap()
+                .inner
+                .serialize()
             )
-            .unwrap()
-            .inner
-            .serialize()
-        ));
-        assert!(invoice.related_to_node(
-            PublicKey::from_str(
-                "03864ef025fde8fb587d989186ce6a4a186895ee44a926bfc370e2c366597a3f8f",
+        );
+        assert!(
+            invoice.related_to_node(
+                PublicKey::from_str(
+                    "03864ef025fde8fb587d989186ce6a4a186895ee44a926bfc370e2c366597a3f8f",
+                )
+                .unwrap()
+                .inner
+                .serialize()
             )
-            .unwrap()
-            .inner
-            .serialize()
-        ));
+        );
 
-        assert!(!invoice.related_to_node(
-            PublicKey::from_str(
-                "02c7d919b4df73e05c16973150f634e5d59bd9336b48488e1987df2f3e1737317a",
+        assert!(
+            !invoice.related_to_node(
+                PublicKey::from_str(
+                    "02c7d919b4df73e05c16973150f634e5d59bd9336b48488e1987df2f3e1737317a",
+                )
+                .unwrap()
+                .inner
+                .serialize()
             )
-            .unwrap()
-            .inner
-            .serialize()
-        ));
+        );
     }
 
     #[test]
     fn test_related_to_node_bolt12() {
         let invoice = Invoice::from_str(BOLT12_INVOICE).unwrap();
 
-        assert!(invoice.related_to_node(
-            PublicKey::from_str(
-                "026483ca100de5671d6dab0d8d8da610c0dac1d94479723df1c01fffcafa566693",
+        assert!(
+            invoice.related_to_node(
+                PublicKey::from_str(
+                    "026483ca100de5671d6dab0d8d8da610c0dac1d94479723df1c01fffcafa566693",
+                )
+                .unwrap()
+                .inner
+                .serialize()
             )
-            .unwrap()
-            .inner
-            .serialize()
-        ));
-        assert!(invoice.related_to_node(
-            PublicKey::from_str(
-                "026483ca100de5671d6dab0d8d8da610c0dac1d94479723df1c01fffcafa566693",
+        );
+        assert!(
+            invoice.related_to_node(
+                PublicKey::from_str(
+                    "026483ca100de5671d6dab0d8d8da610c0dac1d94479723df1c01fffcafa566693",
+                )
+                .unwrap()
+                .inner
+                .serialize()
             )
-            .unwrap()
-            .inner
-            .serialize()
-        ));
-        assert!(invoice.related_to_node(
-            PublicKey::from_str(
-                "0306d53e7e67c799f1ce218263946c68fcd5467a93b5d850b0b1aed691bd3adbc5",
+        );
+        assert!(
+            invoice.related_to_node(
+                PublicKey::from_str(
+                    "0306d53e7e67c799f1ce218263946c68fcd5467a93b5d850b0b1aed691bd3adbc5",
+                )
+                .unwrap()
+                .inner
+                .serialize()
             )
-            .unwrap()
-            .inner
-            .serialize()
-        ));
+        );
 
-        assert!(!invoice.related_to_node(
-            PublicKey::from_str(
-                "02c7d919b4df73e05c16973150f634e5d59bd9336b48488e1987df2f3e1737317a",
+        assert!(
+            !invoice.related_to_node(
+                PublicKey::from_str(
+                    "02c7d919b4df73e05c16973150f634e5d59bd9336b48488e1987df2f3e1737317a",
+                )
+                .unwrap()
+                .inner
+                .serialize()
             )
-            .unwrap()
-            .inner
-            .serialize()
-        ));
+        );
     }
 }

@@ -1,7 +1,7 @@
+use crate::State;
 use crate::database::helpers::invoice_helper::InvoiceHelper;
 use crate::encoder::InvoiceEncoder;
 use crate::handler::Resolution;
-use crate::State;
 use anyhow::Result;
 use cln_plugin::Plugin;
 use log::error;
@@ -18,10 +18,6 @@ pub struct HtlcCallbackRequest {
 #[derive(Default, Debug, Deserialize)]
 pub struct Onion {
     pub payload: String,
-    #[serde(rename = "type")]
-    pub type_field: String,
-    pub forward_msat: u64,
-    pub outgoing_cltv_value: u64,
     pub total_msat: Option<u64>,
     pub next_onion: String,
     pub shared_secret: Option<String>,

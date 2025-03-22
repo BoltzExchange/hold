@@ -4,8 +4,8 @@ use crate::handler::Handler;
 use crate::settler::Settler;
 use anyhow::Result;
 use cln_plugin::{Builder, RpcMethodBuilder};
-use cln_rpc::model::requests::GetinfoRequest;
 use cln_rpc::ClnRpc;
+use cln_rpc::model::requests::GetinfoRequest;
 use log::{debug, error, info, warn};
 use std::fs;
 use std::path::Path;
@@ -36,10 +36,12 @@ struct State<T, E> {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    std::env::set_var(
-        "CLN_PLUGIN_LOG",
-        "cln_plugin=trace,hold=trace,debug,info,warn,error",
-    );
+    unsafe {
+        std::env::set_var(
+            "CLN_PLUGIN_LOG",
+            "cln_plugin=trace,hold=trace,debug,info,warn,error",
+        );
+    }
 
     info!(
         "Starting plugin {}-{}{}",
@@ -59,7 +61,6 @@ async fn main() -> Result<()> {
         .option(OPTION_GRPC_HOST)
         .option(OPTION_GRPC_PORT)
         .hook("htlc_accepted", hooks::htlc_accepted)
-        // TODO: do we need to stop the offers plugin of CLN itself
         .hook("onion_message_recv", hooks::onion_message_recv)
         .hook(
             "onion_message_recv_secret",

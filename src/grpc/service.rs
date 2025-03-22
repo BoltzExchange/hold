@@ -13,16 +13,16 @@ use crate::grpc::service::hold::{
 use crate::grpc::transformers::{transform_invoice_state, transform_route_hints};
 use crate::invoice::Invoice;
 use crate::settler::Settler;
-use bitcoin::hashes::{sha256, Hash};
+use bitcoin::hashes::{Hash, sha256};
 use log::{debug, error, warn};
 use std::collections::HashMap;
 use std::pin::Pin;
 use std::str::FromStr;
 use std::sync::Arc;
 use tokio::sync::{broadcast, mpsc};
-use tonic::codegen::tokio_stream::wrappers::ReceiverStream;
 use tonic::codegen::tokio_stream::Stream;
-use tonic::{async_trait, Code, Request, Response, Status};
+use tonic::codegen::tokio_stream::wrappers::ReceiverStream;
+use tonic::{Code, Request, Response, Status, async_trait};
 
 pub mod hold {
     tonic::include_proto!("hold");
@@ -85,7 +85,7 @@ where
                 return Err(Status::new(
                     Code::InvalidArgument,
                     format!("invalid routing hint: {}", err),
-                ))
+                ));
             }
         };
 
@@ -114,7 +114,7 @@ where
                 return Err(Status::new(
                     Code::Internal,
                     format!("could not encode invoice: {}", err),
-                ))
+                ));
             }
         };
 

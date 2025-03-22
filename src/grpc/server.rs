@@ -1,7 +1,7 @@
 use crate::database::helpers::invoice_helper::InvoiceHelper;
 use crate::encoder::InvoiceEncoder;
-use crate::grpc::service::hold::hold_server::HoldServer;
 use crate::grpc::service::HoldService;
+use crate::grpc::service::hold::hold_server::HoldServer;
 use crate::grpc::tls::load_certificates;
 use crate::settler::Settler;
 use anyhow::Result;
@@ -108,8 +108,8 @@ mod test {
     use crate::database::model::*;
     use crate::encoder::{InvoiceBuilder, InvoiceEncoder};
     use crate::grpc::server::{Server, State};
-    use crate::grpc::service::hold::hold_client::HoldClient;
     use crate::grpc::service::hold::GetInfoRequest;
+    use crate::grpc::service::hold::hold_client::HoldClient;
     use crate::settler::Settler;
     use anyhow::Result;
     use mockall::mock;

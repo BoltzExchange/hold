@@ -1,6 +1,6 @@
+use crate::State;
 use crate::database::helpers::invoice_helper::InvoiceHelper;
 use crate::encoder::InvoiceEncoder;
-use crate::State;
 use anyhow::Result;
 use cln_plugin::Plugin;
 use log::error;

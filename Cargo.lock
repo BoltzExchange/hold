@@ -223,12 +223,6 @@ checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
 
 [[package]]
 name = "bech32"
-version = "0.9.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d86b93f97252c47b41663388e6d155714a9d0c398b99f1005cbc5f978b29f445"
-
-[[package]]
-name = "bech32"
 version = "0.10.0-beta"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "98f7eed2b2781a6f0b5c903471d48e15f56fb4e1165df8a9a2337fd1a59d45ea"
@@ -389,9 +383,9 @@ dependencies = [
 
 [[package]]
 name = "cln-plugin"
-version = "0.3.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "55eefc811f7d5280586dec7342824a84ab81f1d7e0cdb4cd579c1470e3e236cc"
+checksum = "74a0f6827e3c3dfa7f2e92bb0591b5be44c82b945ff88f534857b185810414ce"
 dependencies = [
  "anyhow",
  "bytes",
@@ -408,9 +402,9 @@ dependencies = [
 
 [[package]]
 name = "cln-rpc"
-version = "0.3.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8c3a427aa2f32471b07e97c33f0279c0c52abbf73537c1766edd7948a7afbaa0"
+checksum = "f4436e58f1fccb1faf69df9ac436ae9304b5c200c7d92e6c4229826bdd0a8d0d"
 dependencies = [
  "anyhow",
  "bitcoin 0.31.2",
@@ -861,7 +855,7 @@ name = "hold"
 version = "0.3.0"
 dependencies = [
  "anyhow",
- "bech32 0.9.1",
+ "bech32 0.11.0",
  "bitcoin 0.32.5",
  "built",
  "chrono",

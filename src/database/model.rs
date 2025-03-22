@@ -276,19 +276,27 @@ mod test {
 
     #[test]
     fn invoice_state_validate() {
-        assert!(InvoiceState::Unpaid
-            .validate_transition(InvoiceState::Accepted)
-            .is_ok());
-        assert!(InvoiceState::Unpaid
-            .validate_transition(InvoiceState::Cancelled)
-            .is_ok());
+        assert!(
+            InvoiceState::Unpaid
+                .validate_transition(InvoiceState::Accepted)
+                .is_ok()
+        );
+        assert!(
+            InvoiceState::Unpaid
+                .validate_transition(InvoiceState::Cancelled)
+                .is_ok()
+        );
 
-        assert!(InvoiceState::Accepted
-            .validate_transition(InvoiceState::Paid)
-            .is_ok());
-        assert!(InvoiceState::Unpaid
-            .validate_transition(InvoiceState::Cancelled)
-            .is_ok());
+        assert!(
+            InvoiceState::Accepted
+                .validate_transition(InvoiceState::Paid)
+                .is_ok()
+        );
+        assert!(
+            InvoiceState::Unpaid
+                .validate_transition(InvoiceState::Cancelled)
+                .is_ok()
+        );
     }
 
     #[test]
@@ -311,12 +319,16 @@ mod test {
 
     #[test]
     fn invoice_state_validate_transition_final_same_state() {
-        assert!(InvoiceState::Paid
-            .validate_transition(InvoiceState::Paid)
-            .is_ok());
-        assert!(InvoiceState::Cancelled
-            .validate_transition(InvoiceState::Cancelled)
-            .is_ok());
+        assert!(
+            InvoiceState::Paid
+                .validate_transition(InvoiceState::Paid)
+                .is_ok()
+        );
+        assert!(
+            InvoiceState::Cancelled
+                .validate_transition(InvoiceState::Cancelled)
+                .is_ok()
+        );
     }
 
     #[test]

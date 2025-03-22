@@ -368,9 +368,6 @@ mod test {
             .htlc_accepted(HtlcCallbackRequest {
                 onion: Onion {
                     payload: "".to_string(),
-                    type_field: "".to_string(),
-                    forward_msat: 0,
-                    outgoing_cltv_value: 0,
                     total_msat: None,
                     next_onion: "".to_string(),
                     shared_secret: None,
@@ -427,9 +424,6 @@ mod test {
             .htlc_accepted(HtlcCallbackRequest {
                 onion: Onion {
                     payload: "".to_string(),
-                    type_field: "".to_string(),
-                    forward_msat: 0,
-                    outgoing_cltv_value: 0,
                     total_msat: None,
                     next_onion: "".to_string(),
                     shared_secret: None,
@@ -489,9 +483,6 @@ mod test {
             .htlc_accepted(HtlcCallbackRequest {
                 onion: Onion {
                     payload: "".to_string(),
-                    type_field: "".to_string(),
-                    forward_msat: 0,
-                    outgoing_cltv_value: 0,
                     total_msat: None,
                     next_onion: "".to_string(),
                     shared_secret: None,
@@ -584,9 +575,6 @@ mod test {
             .htlc_accepted(HtlcCallbackRequest {
                 onion: Onion {
                     payload: "".to_string(),
-                    type_field: "".to_string(),
-                    forward_msat: 0,
-                    outgoing_cltv_value: 0,
                     total_msat: None,
                     next_onion: "".to_string(),
                     shared_secret: None,

@@ -1,14 +1,14 @@
+use crate::database::Pool;
 use crate::database::model::{
     HoldInvoice, Htlc, HtlcInsertable, Invoice, InvoiceInsertable, InvoiceState,
 };
 use crate::database::schema::{htlcs, invoices};
-use crate::database::Pool;
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use chrono::{TimeDelta, Utc};
 use diesel::dsl::delete;
 use diesel::{
-    insert_into, update, BelongingToDsl, BoolExpressionMethods, Connection, ExpressionMethods,
-    GroupedBy,
+    BelongingToDsl, BoolExpressionMethods, Connection, ExpressionMethods, GroupedBy, insert_into,
+    update,
 };
 use diesel::{QueryDsl, RunQueryDsl, SelectableHelper};
 use std::ops::Sub;
