@@ -27,6 +27,7 @@ impl From<HoldInvoice> for hold::Invoice {
             state: transform_invoice_state(
                 InvoiceState::try_from(value.invoice.state.as_str()).unwrap(),
             ),
+            min_cltv_expiry: value.invoice.min_cltv.map(|cltv| cltv as u64),
             created_at: value.invoice.created_at.and_utc().timestamp() as u64,
             settled_at: value
                 .invoice

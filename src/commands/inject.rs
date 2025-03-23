@@ -13,6 +13,7 @@ use std::str::FromStr;
 #[derive(Debug, Deserialize)]
 struct InjectInvoiceRequest {
     invoice: String,
+    min_cltv: Option<u32>,
 }
 
 impl FromArr for InjectInvoiceRequest {
@@ -23,6 +24,11 @@ impl FromArr for InjectInvoiceRequest {
 
         Ok(InjectInvoiceRequest {
             invoice: arr[0].as_str().ok_or(ParamsError::ParseError)?.to_string(),
+            min_cltv: if arr.len() > 1 {
+                Some(arr[1].as_u64().ok_or(ParamsError::ParseError)? as u32)
+            } else {
+                None
+            },
         })
     }
 }
@@ -47,6 +53,7 @@ where
         invoice: params.invoice.clone(),
         payment_hash: invoice.payment_hash().to_vec(),
         state: InvoiceState::Unpaid.into(),
+        min_cltv: params.min_cltv.map(|cltv| cltv as i32),
     })?;
     plugin.state().settler.new_invoice(
         params.invoice,

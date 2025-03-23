@@ -5,6 +5,7 @@ diesel::table! {
         preimage -> Nullable<Binary>,
         invoice -> Text,
         state -> Text,
+        min_cltv -> Nullable<Integer>,
         created_at -> Timestamp,
         settled_at -> Nullable<Timestamp>,
     }

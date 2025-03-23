@@ -50,6 +50,7 @@ where
         invoice: invoice.clone(),
         payment_hash: payment_hash.clone(),
         state: InvoiceState::Unpaid.into(),
+        min_cltv: None,
     })?;
     plugin
         .state()

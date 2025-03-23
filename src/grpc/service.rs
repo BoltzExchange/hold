@@ -122,6 +122,7 @@ where
             invoice: invoice.clone(),
             payment_hash: params.payment_hash.clone(),
             state: InvoiceState::Unpaid.into(),
+            min_cltv: params.min_final_cltv_expiry.map(|cltv| cltv as i32),
         }) {
             return Err(Status::new(
                 Code::Internal,
@@ -158,6 +159,7 @@ where
                 invoice: params.invoice.clone(),
                 payment_hash: invoice.payment_hash().to_vec(),
                 state: InvoiceState::Unpaid.into(),
+                min_cltv: params.min_cltv_expiry.map(|cltv| cltv as i32),
             })
             .map_err(|err| {
                 Status::new(Code::Internal, format!("could not save invoice: {}", err))

@@ -12,6 +12,7 @@ pub struct Invoice {
     pub preimage: Option<Vec<u8>>,
     pub invoice: String,
     pub state: String,
+    pub min_cltv: Option<i32>,
     pub created_at: chrono::NaiveDateTime,
     pub settled_at: Option<chrono::NaiveDateTime>,
 }
@@ -22,6 +23,7 @@ pub struct InvoiceInsertable {
     pub payment_hash: Vec<u8>,
     pub invoice: String,
     pub state: String,
+    pub min_cltv: Option<i32>,
 }
 
 #[derive(
@@ -358,6 +360,7 @@ mod test {
                 preimage: None,
                 invoice: "".to_string(),
                 state: "".to_string(),
+                min_cltv: None,
                 created_at: Default::default(),
                 settled_at: None,
             },
@@ -408,6 +411,7 @@ mod test {
                 preimage: None,
                 invoice: "".to_string(),
                 state: "".to_string(),
+                min_cltv: None,
                 created_at: Default::default(),
                 settled_at: None,
             },
