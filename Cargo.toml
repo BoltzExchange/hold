@@ -1,7 +1,7 @@
 [package]
 name = "hold"
-version = "0.2.2"
-edition = "2021"
+version = "0.3.0"
+edition = "2024"
 license = "MIT"
 build = "build.rs"
 repository = "https://github.com/BoltzExchange/hold"
@@ -15,7 +15,7 @@ panic = "abort"
 
 [dependencies]
 anyhow = "1.0.95"
-cln-plugin = "0.3.0"
+cln-plugin = "0.4.0"
 diesel = { version = "2.2.6", features = [
     "postgres",
     "r2d2",
@@ -23,20 +23,22 @@ diesel = { version = "2.2.6", features = [
     "sqlite",
 ] }
 diesel_migrations = "2.2.0"
-log = { version = "0.4.22", features = [] }
+log = { version = "0.4.25", features = [] }
 prost = "0.13.4"
 rcgen = { version = "0.13.2", features = ["x509-parser"] }
-tokio = { version = "1.42.0", features = ["macros", "rt-multi-thread", "sync"] }
+tokio = { version = "1.43.0", features = ["macros", "rt-multi-thread", "sync"] }
 tonic = { version = "0.12.3", features = ["prost", "tls", "gzip", "zstd"] }
 serde = { version = "1.0.217", features = ["derive"] }
-serde_json = { version = "1.0.134", features = ["preserve_order"] }
-lightning-invoice = { version = "0.32.0", features = ["std"] }
+serde_json = { version = "1.0.137", features = ["preserve_order"] }
+lightning-invoice = { version = "0.33.0", features = ["std"] }
 chrono = { version = "0.4.39", features = ["serde"] }
 bitcoin = { version = "0.32.5", features = ["rand-std"] }
 secp256k1 = "0.29.1"
-cln-rpc = "0.3.0"
+cln-rpc = "0.4.0"
 hex = "0.4.3"
 tokio-util = "0.7.13"
+lightning = { version = "0.1.0", features = ["std"] }
+bech32 = "0.11.0"
 
 [build-dependencies]
 built = { version = "0.7.5", features = ["git2"] }

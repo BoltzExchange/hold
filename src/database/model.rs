@@ -10,8 +10,9 @@ pub struct Invoice {
     pub id: i64,
     pub payment_hash: Vec<u8>,
     pub preimage: Option<Vec<u8>>,
-    pub bolt11: String,
+    pub invoice: String,
     pub state: String,
+    pub min_cltv: Option<i32>,
     pub created_at: chrono::NaiveDateTime,
     pub settled_at: Option<chrono::NaiveDateTime>,
 }
@@ -20,8 +21,9 @@ pub struct Invoice {
 #[diesel(table_name = crate::database::schema::invoices)]
 pub struct InvoiceInsertable {
     pub payment_hash: Vec<u8>,
-    pub bolt11: String,
+    pub invoice: String,
     pub state: String,
+    pub min_cltv: Option<i32>,
 }
 
 #[derive(
@@ -276,19 +278,27 @@ mod test {
 
     #[test]
     fn invoice_state_validate() {
-        InvoiceState::Unpaid
-            .validate_transition(InvoiceState::Accepted)
-            .unwrap();
-        InvoiceState::Unpaid
-            .validate_transition(InvoiceState::Cancelled)
-            .unwrap();
+        assert!(
+            InvoiceState::Unpaid
+                .validate_transition(InvoiceState::Accepted)
+                .is_ok()
+        );
+        assert!(
+            InvoiceState::Unpaid
+                .validate_transition(InvoiceState::Cancelled)
+                .is_ok()
+        );
 
-        InvoiceState::Accepted
-            .validate_transition(InvoiceState::Paid)
-            .unwrap();
-        InvoiceState::Unpaid
-            .validate_transition(InvoiceState::Cancelled)
-            .unwrap();
+        assert!(
+            InvoiceState::Accepted
+                .validate_transition(InvoiceState::Paid)
+                .is_ok()
+        );
+        assert!(
+            InvoiceState::Unpaid
+                .validate_transition(InvoiceState::Cancelled)
+                .is_ok()
+        );
     }
 
     #[test]
@@ -311,12 +321,16 @@ mod test {
 
     #[test]
     fn invoice_state_validate_transition_final_same_state() {
-        assert!(InvoiceState::Paid
-            .validate_transition(InvoiceState::Paid)
-            .is_ok());
-        assert!(InvoiceState::Cancelled
-            .validate_transition(InvoiceState::Cancelled)
-            .is_ok());
+        assert!(
+            InvoiceState::Paid
+                .validate_transition(InvoiceState::Paid)
+                .is_ok()
+        );
+        assert!(
+            InvoiceState::Cancelled
+                .validate_transition(InvoiceState::Cancelled)
+                .is_ok()
+        );
     }
 
     #[test]
@@ -344,8 +358,9 @@ mod test {
                 id: 0,
                 payment_hash: vec![],
                 preimage: None,
-                bolt11: "".to_string(),
+                invoice: "".to_string(),
                 state: "".to_string(),
+                min_cltv: None,
                 created_at: Default::default(),
                 settled_at: None,
             },
@@ -394,8 +409,9 @@ mod test {
                 id: 0,
                 payment_hash: vec![],
                 preimage: None,
-                bolt11: "".to_string(),
+                invoice: "".to_string(),
                 state: "".to_string(),
+                min_cltv: None,
                 created_at: Default::default(),
                 settled_at: None,
             },

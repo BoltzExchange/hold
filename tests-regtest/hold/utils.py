@@ -44,10 +44,11 @@ def hold_client() -> tuple[grpc.Channel, HoldStub]:
     return channel, client
 
 
-def lightning(*args: str, node: int = 2) -> dict[str, Any]:
+def lightning(*args: str | float, node: int = 2) -> dict[str, Any]:
     return json.load(
         os.popen(
-            f"docker exec boltz-cln-{node} lightning-cli --regtest {' '.join(args)}",
+            f"docker exec boltz-cln-{node} lightning-cli --regtest "
+            f"{' '.join(str(arg) for arg in args)}",
         ),
     )
 

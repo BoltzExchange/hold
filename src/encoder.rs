@@ -1,10 +1,10 @@
 use anyhow::Result;
-use bitcoin::hashes::{sha256, Hash};
-use cln_rpc::model::requests::SigninvoiceRequest;
+use bitcoin::hashes::{Hash, sha256};
 use cln_rpc::ClnRpc;
+use cln_rpc::model::requests::SigninvoiceRequest;
 use lightning_invoice::{Currency, PaymentSecret, RouteHint};
 use secp256k1::rand::Rng;
-use secp256k1::{rand, Secp256k1, SecretKey};
+use secp256k1::{Secp256k1, SecretKey, rand};
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 use std::sync::Arc;

@@ -1,8 +1,8 @@
 use diesel::connection::SimpleConnection;
 use diesel::prelude::*;
 use diesel::r2d2::ConnectionManager;
-use diesel::{r2d2, PgConnection, SqliteConnection};
-use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
+use diesel::{PgConnection, SqliteConnection, r2d2};
+use diesel_migrations::{EmbeddedMigrations, MigrationHarness, embed_migrations};
 use log::{debug, info, trace};
 use std::error::Error;
 use std::time::Duration;

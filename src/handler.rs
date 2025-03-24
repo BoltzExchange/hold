@@ -1,9 +1,9 @@
 use crate::database::helpers::invoice_helper::InvoiceHelper;
 use crate::database::model::{HoldInvoice, HtlcInsertable, InvoiceState};
-use crate::hooks::{FailureMessage, HtlcCallbackRequest, HtlcCallbackResponse};
+use crate::hooks::htlc_accepted::{FailureMessage, HtlcCallbackRequest, HtlcCallbackResponse};
+use crate::invoice::Invoice;
 use crate::settler::{Resolver, Settler};
 use anyhow::Result;
-use lightning_invoice::Bolt11Invoice;
 use log::{debug, error, info, warn};
 use std::str::FromStr;
 use std::sync::Arc;
@@ -85,11 +85,11 @@ where
             );
         }
 
-        let invoice_decoded = Bolt11Invoice::from_str(&invoice.invoice.bolt11)?;
+        let invoice_decoded = Invoice::from_str(&invoice.invoice.invoice)?;
 
-        {
-            let payment_secret = args.onion.payment_secret.clone().unwrap_or("".to_string());
-            if payment_secret != hex::encode(invoice_decoded.payment_secret().0) {
+        if let Some(payment_secret) = invoice_decoded.payment_secret() {
+            let htlc_secret = args.onion.payment_secret.clone().unwrap_or("".to_string());
+            if htlc_secret != hex::encode(payment_secret) {
                 return self.reject_htlc(
                     &invoice,
                     &args,
@@ -99,19 +99,24 @@ where
             }
         }
 
-        if args.htlc.cltv_expiry_relative < invoice_decoded.min_final_cltv_expiry_delta() {
-            return self.reject_htlc(
-                &invoice,
-                &args,
-                // TODO: use incorrect_cltv_expiry or expiry_too_soon error?
-                FailureMessage::IncorrectPaymentDetails,
-                format!(
-                    "CLTV too little ({} < {})",
-                    args.htlc.cltv_expiry_relative,
-                    invoice_decoded.min_final_cltv_expiry_delta()
-                )
-                .as_str(),
-            );
+        {
+            let min_cltv = invoice
+                .invoice
+                .min_cltv
+                .unwrap_or(invoice_decoded.min_final_cltv_expiry_delta() as i32);
+
+            if args.htlc.cltv_expiry_relative < min_cltv as u64 {
+                return self.reject_htlc(
+                    &invoice,
+                    &args,
+                    FailureMessage::FinalIncorrectCltvExpiry,
+                    format!(
+                        "CLTV too little ({} < {})",
+                        args.htlc.cltv_expiry_relative, min_cltv
+                    )
+                    .as_str(),
+                );
+            }
         }
 
         let amount_paid = invoice.amount_paid_msat() + args.htlc.amount_msat;
@@ -212,7 +217,9 @@ mod test {
         HoldInvoice, HtlcInsertable, Invoice, InvoiceInsertable, InvoiceState,
     };
     use crate::handler::{Handler, Resolution};
-    use crate::hooks::{FailureMessage, Htlc, HtlcCallbackRequest, HtlcCallbackResponse, Onion};
+    use crate::hooks::htlc_accepted::{
+        FailureMessage, Htlc, HtlcCallbackRequest, HtlcCallbackResponse, Onion,
+    };
     use crate::settler::Settler;
     use anyhow::Result;
     use lightning_invoice::Bolt11Invoice;
@@ -278,7 +285,6 @@ mod test {
                     cltv_expiry_relative: 0,
                     payment_hash: "00".to_string(),
                 },
-                forward_to: None,
             })
             .await;
 
@@ -302,9 +308,10 @@ mod test {
                     preimage: None,
                     settled_at: None,
                     payment_hash: vec![],
-                    bolt11: "".to_string(),
+                    invoice: "".to_string(),
                     created_at: Default::default(),
                     state: InvoiceState::Paid.to_string(),
+                    min_cltv: None,
                 },
                 htlcs: vec![],
             }))
@@ -324,7 +331,6 @@ mod test {
                     cltv_expiry_relative: 0,
                     payment_hash: "00".to_string(),
                 },
-                forward_to: None,
             })
             .await;
 
@@ -353,9 +359,10 @@ mod test {
                     preimage: None,
                     settled_at: None,
                     payment_hash: vec![],
-                    bolt11: INVOICE.to_string(),
+                    invoice: INVOICE.to_string(),
                     state: InvoiceState::Unpaid.to_string(),
                     created_at: Default::default(),
+                    min_cltv: None,
                 },
                 htlcs: vec![],
             }))
@@ -368,9 +375,6 @@ mod test {
             .htlc_accepted(HtlcCallbackRequest {
                 onion: Onion {
                     payload: "".to_string(),
-                    type_field: "".to_string(),
-                    forward_msat: 0,
-                    outgoing_cltv_value: 0,
                     total_msat: None,
                     next_onion: "".to_string(),
                     shared_secret: None,
@@ -384,7 +388,6 @@ mod test {
                     cltv_expiry_relative: 0,
                     payment_hash: "00".to_string(),
                 },
-                forward_to: None,
             })
             .await;
 
@@ -404,7 +407,7 @@ mod test {
     }
 
     #[tokio::test]
-    async fn invoice_too_little_cltv() {
+    async fn invoice_too_little_cltv_inferred() {
         let mut helper = MockInvoiceHelper::new();
         helper.expect_get_by_payment_hash().returning(|_| {
             Ok(Some(HoldInvoice {
@@ -413,8 +416,9 @@ mod test {
                     preimage: None,
                     settled_at: None,
                     payment_hash: vec![],
-                    bolt11: INVOICE.to_string(),
+                    invoice: INVOICE.to_string(),
                     state: InvoiceState::Unpaid.to_string(),
+                    min_cltv: None,
                     created_at: Default::default(),
                 },
                 htlcs: vec![],
@@ -428,9 +432,6 @@ mod test {
             .htlc_accepted(HtlcCallbackRequest {
                 onion: Onion {
                     payload: "".to_string(),
-                    type_field: "".to_string(),
-                    forward_msat: 0,
-                    outgoing_cltv_value: 0,
                     total_msat: None,
                     next_onion: "".to_string(),
                     shared_secret: None,
@@ -447,7 +448,6 @@ mod test {
                     cltv_expiry_relative: 2,
                     payment_hash: "00".to_string(),
                 },
-                forward_to: None,
             })
             .await;
 
@@ -456,7 +456,69 @@ mod test {
                 assert_eq!(
                     res,
                     HtlcCallbackResponse::Fail {
-                        failure_message: FailureMessage::IncorrectPaymentDetails
+                        failure_message: FailureMessage::FinalIncorrectCltvExpiry
+                    }
+                );
+            }
+            Resolution::Resolver(_) => {
+                unreachable!();
+            }
+        };
+    }
+
+    #[tokio::test]
+    async fn invoice_too_little_cltv_explicit() {
+        let min_cltv = 100;
+
+        let mut helper = MockInvoiceHelper::new();
+        helper.expect_get_by_payment_hash().returning(move |_| {
+            Ok(Some(HoldInvoice {
+                invoice: Invoice {
+                    id: 0,
+                    preimage: None,
+                    settled_at: None,
+                    payment_hash: vec![],
+                    invoice: INVOICE.to_string(),
+                    state: InvoiceState::Unpaid.to_string(),
+                    min_cltv: Some(min_cltv),
+                    created_at: Default::default(),
+                },
+                htlcs: vec![],
+            }))
+        });
+        helper.expect_insert_htlc().returning(|_| Ok(0));
+
+        let mut handler = Handler::new(helper, Settler::new(MockInvoiceHelper::new(), 0));
+
+        let res = handler
+            .htlc_accepted(HtlcCallbackRequest {
+                onion: Onion {
+                    payload: "".to_string(),
+                    total_msat: None,
+                    next_onion: "".to_string(),
+                    shared_secret: None,
+                    payment_secret: Some(
+                        "f4c2b2acca47e76328b3414f8de1ff5bfb03c335357ded0d6e006281c6f23bfc"
+                            .to_string(),
+                    ),
+                },
+                htlc: Htlc {
+                    short_channel_id: "".to_string(),
+                    id: 0,
+                    amount_msat: 0,
+                    cltv_expiry: 0,
+                    cltv_expiry_relative: min_cltv as u64 - 1,
+                    payment_hash: "00".to_string(),
+                },
+            })
+            .await;
+
+        match res {
+            Resolution::Resolution(res) => {
+                assert_eq!(
+                    res,
+                    HtlcCallbackResponse::Fail {
+                        failure_message: FailureMessage::FinalIncorrectCltvExpiry
                     }
                 );
             }
@@ -476,8 +538,9 @@ mod test {
                     preimage: None,
                     settled_at: None,
                     payment_hash: vec![],
-                    bolt11: INVOICE.to_string(),
+                    invoice: INVOICE.to_string(),
                     state: InvoiceState::Unpaid.to_string(),
+                    min_cltv: None,
                     created_at: Default::default(),
                 },
                 htlcs: vec![],
@@ -491,9 +554,6 @@ mod test {
             .htlc_accepted(HtlcCallbackRequest {
                 onion: Onion {
                     payload: "".to_string(),
-                    type_field: "".to_string(),
-                    forward_msat: 0,
-                    outgoing_cltv_value: 0,
                     total_msat: None,
                     next_onion: "".to_string(),
                     shared_secret: None,
@@ -510,7 +570,6 @@ mod test {
                     cltv_expiry_relative: 18,
                     payment_hash: "00".to_string(),
                 },
-                forward_to: None,
             })
             .await;
 
@@ -542,10 +601,11 @@ mod test {
                     id: 0,
                     preimage: None,
                     settled_at: None,
-                    bolt11: INVOICE.to_string(),
+                    invoice: INVOICE.to_string(),
                     created_at: Default::default(),
                     payment_hash: payment_hash_cp.clone(),
                     state: InvoiceState::Unpaid.to_string(),
+                    min_cltv: None,
                 },
                 htlcs: vec![],
             }))
@@ -563,10 +623,11 @@ mod test {
                         id: 0,
                         preimage: None,
                         settled_at: None,
-                        bolt11: INVOICE.to_string(),
+                        invoice: INVOICE.to_string(),
                         created_at: Default::default(),
                         state: InvoiceState::Unpaid.to_string(),
                         payment_hash: payment_hash_cp_settler.clone(),
+                        min_cltv: None,
                     },
                     htlcs: vec![],
                 }))
@@ -587,9 +648,6 @@ mod test {
             .htlc_accepted(HtlcCallbackRequest {
                 onion: Onion {
                     payload: "".to_string(),
-                    type_field: "".to_string(),
-                    forward_msat: 0,
-                    outgoing_cltv_value: 0,
                     total_msat: None,
                     next_onion: "".to_string(),
                     shared_secret: None,
@@ -606,7 +664,6 @@ mod test {
                     cltv_expiry_relative: 18,
                     payment_hash: hex::encode(payment_hash.clone()),
                 },
-                forward_to: None,
             })
             .await;
 

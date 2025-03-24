@@ -3,8 +3,9 @@ diesel::table! {
         id -> BigInt,
         payment_hash -> Binary,
         preimage -> Nullable<Binary>,
-        bolt11 -> Text,
+        invoice -> Text,
         state -> Text,
+        min_cltv -> Nullable<Integer>,
         created_at -> Timestamp,
         settled_at -> Nullable<Timestamp>,
     }

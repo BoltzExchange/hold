@@ -6,28 +6,34 @@ use crate::grpc::service::hold::invoice_request::Description;
 use crate::grpc::service::hold::list_request::Constraint;
 use crate::grpc::service::hold::{
     CancelRequest, CancelResponse, CleanRequest, CleanResponse, GetInfoRequest, GetInfoResponse,
-    InvoiceRequest, InvoiceResponse, ListRequest, ListResponse, SettleRequest, SettleResponse,
-    TrackAllRequest, TrackAllResponse, TrackRequest, TrackResponse,
+    InjectRequest, InjectResponse, InvoiceRequest, InvoiceResponse, ListRequest, ListResponse,
+    OnionMessage, OnionMessagesRequest, SettleRequest, SettleResponse, TrackAllRequest,
+    TrackAllResponse, TrackRequest, TrackResponse,
 };
 use crate::grpc::transformers::{transform_invoice_state, transform_route_hints};
+use crate::invoice::Invoice;
 use crate::settler::Settler;
-use bitcoin::hashes::{sha256, Hash};
+use bitcoin::hashes::{Hash, sha256};
 use log::{debug, error, warn};
 use std::collections::HashMap;
 use std::pin::Pin;
-use tokio::sync::mpsc;
-use tonic::codegen::tokio_stream::wrappers::ReceiverStream;
+use std::str::FromStr;
+use std::sync::Arc;
+use tokio::sync::{broadcast, mpsc};
 use tonic::codegen::tokio_stream::Stream;
-use tonic::{async_trait, Code, Request, Response, Status};
+use tonic::codegen::tokio_stream::wrappers::ReceiverStream;
+use tonic::{Code, Request, Response, Status, async_trait};
 
 pub mod hold {
     tonic::include_proto!("hold");
 }
 
 pub struct HoldService<T, E> {
+    our_id: [u8; 33],
     encoder: E,
     invoice_helper: T,
     settler: Settler<T>,
+    onion_msg_rx: Arc<broadcast::Receiver<crate::hooks::OnionMessage>>,
 }
 
 impl<T, E> HoldService<T, E>
@@ -35,10 +41,18 @@ where
     T: InvoiceHelper + Send + Sync + Clone + 'static,
     E: InvoiceEncoder + Send + Sync + Clone + 'static,
 {
-    pub fn new(invoice_helper: T, encoder: E, settler: Settler<T>) -> Self {
+    pub fn new(
+        our_id: [u8; 33],
+        invoice_helper: T,
+        encoder: E,
+        settler: Settler<T>,
+        onion_msg_rx: Arc<broadcast::Receiver<crate::hooks::OnionMessage>>,
+    ) -> Self {
         HoldService {
+            our_id,
             encoder,
             settler,
+            onion_msg_rx,
             invoice_helper,
         }
     }
@@ -71,7 +85,7 @@ where
                 return Err(Status::new(
                     Code::InvalidArgument,
                     format!("invalid routing hint: {}", err),
-                ))
+                ));
             }
         };
 
@@ -100,14 +114,15 @@ where
                 return Err(Status::new(
                     Code::Internal,
                     format!("could not encode invoice: {}", err),
-                ))
+                ));
             }
         };
 
         if let Err(err) = self.invoice_helper.insert(&InvoiceInsertable {
-            bolt11: invoice.clone(),
+            invoice: invoice.clone(),
             payment_hash: params.payment_hash.clone(),
             state: InvoiceState::Unpaid.into(),
+            min_cltv: params.min_final_cltv_expiry.map(|cltv| cltv as i32),
         }) {
             return Err(Status::new(
                 Code::Internal,
@@ -119,6 +134,44 @@ where
             .new_invoice(invoice.clone(), params.payment_hash, params.amount_msat);
 
         Ok(Response::new(InvoiceResponse { bolt11: invoice }))
+    }
+
+    async fn inject(
+        &self,
+        request: Request<InjectRequest>,
+    ) -> Result<Response<InjectResponse>, Status> {
+        let params = request.into_inner();
+
+        let invoice = Invoice::from_str(&params.invoice).map_err(|err| {
+            Status::new(Code::InvalidArgument, format!("invalid invoice: {}", err))
+        })?;
+
+        // Sanity check that the invoice can go through us
+        if !invoice.related_to_node(self.our_id) {
+            return Err(Status::new(
+                Code::InvalidArgument,
+                "invoice is not related to us".to_string(),
+            ));
+        }
+
+        self.invoice_helper
+            .insert(&InvoiceInsertable {
+                invoice: params.invoice.clone(),
+                payment_hash: invoice.payment_hash().to_vec(),
+                state: InvoiceState::Unpaid.into(),
+                min_cltv: params.min_cltv_expiry.map(|cltv| cltv as i32),
+            })
+            .map_err(|err| {
+                Status::new(Code::Internal, format!("could not save invoice: {}", err))
+            })?;
+
+        self.settler.new_invoice(
+            params.invoice,
+            invoice.payment_hash().to_vec(),
+            invoice.amount_milli_satoshis().unwrap_or(0),
+        );
+
+        Ok(Response::new(InjectResponse {}))
     }
 
     async fn list(&self, request: Request<ListRequest>) -> Result<Response<ListResponse>, Status> {
@@ -356,7 +409,7 @@ where
 
                 if let Err(err) = tx
                     .send(Ok(TrackAllResponse {
-                        bolt11: invoice.invoice.bolt11,
+                        bolt11: invoice.invoice.invoice,
                         state: transform_invoice_state(state),
                         payment_hash: invoice.invoice.payment_hash,
                     }))
@@ -391,6 +444,43 @@ where
                     }
                     Err(err) => {
                         error!("Waiting for all invoices state updates failed: {}", err);
+                        break;
+                    }
+                }
+            }
+        });
+
+        Ok(Response::new(Box::pin(ReceiverStream::new(rx))))
+    }
+
+    type OnionMessagesStream = Pin<Box<dyn Stream<Item = Result<OnionMessage, Status>> + Send>>;
+
+    async fn onion_messages(
+        &self,
+        _request: Request<OnionMessagesRequest>,
+    ) -> Result<Response<Self::OnionMessagesStream>, Status> {
+        let (tx, rx) = mpsc::channel(128);
+        let mut onion_rx = self.onion_msg_rx.resubscribe();
+
+        tokio::spawn(async move {
+            loop {
+                match onion_rx.recv().await {
+                    Ok(msg) => {
+                        let msg: OnionMessage = match msg.try_into() {
+                            Ok(msg) => msg,
+                            Err(err) => {
+                                error!("Failed to convert onion message: {}", err);
+                                break;
+                            }
+                        };
+
+                        if let Err(err) = tx.send(Ok(msg)).await {
+                            error!("Failed to send onion message: {}", err);
+                            break;
+                        }
+                    }
+                    Err(err) => {
+                        error!("Waiting for onion messages failed: {}", err);
                         break;
                     }
                 }

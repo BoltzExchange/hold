@@ -1,8 +1,8 @@
-use crate::commands::structs::{parse_args, FromArr, ParamsError};
+use crate::State;
+use crate::commands::structs::{FromArr, ParamsError, parse_args};
 use crate::database::helpers::invoice_helper::InvoiceHelper;
 use crate::database::model::{InvoiceInsertable, InvoiceState};
 use crate::encoder::{InvoiceBuilder, InvoiceEncoder};
-use crate::State;
 use anyhow::Result;
 use cln_plugin::Plugin;
 use serde::{Deserialize, Serialize};
@@ -47,9 +47,10 @@ where
         .encode(InvoiceBuilder::new(&payment_hash).amount_msat(params.amount))
         .await?;
     plugin.state().invoice_helper.insert(&InvoiceInsertable {
-        bolt11: invoice.clone(),
+        invoice: invoice.clone(),
         payment_hash: payment_hash.clone(),
         state: InvoiceState::Unpaid.into(),
+        min_cltv: None,
     })?;
     plugin
         .state()

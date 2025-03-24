@@ -6,6 +6,7 @@ service Hold {
   rpc GetInfo (GetInfoRequest) returns (GetInfoResponse);
 
   rpc Invoice (InvoiceRequest) returns (InvoiceResponse) {}
+  rpc Inject (InjectRequest) returns (InjectResponse) {}
 
   rpc List (ListRequest) returns (ListResponse) {}
 
@@ -17,6 +18,8 @@ service Hold {
 
   rpc Track (TrackRequest) returns (stream TrackResponse) {}
   rpc TrackAll (TrackAllRequest) returns (stream TrackAllResponse) {}
+
+  rpc OnionMessages (OnionMessagesRequest) returns (stream OnionMessage) {}
 }
 
 message GetInfoRequest {}
@@ -53,6 +56,12 @@ message InvoiceResponse {
   string bolt11 = 1;
 }
 
+message InjectRequest {
+  string invoice = 1;
+  optional uint64 min_cltv_expiry = 2;
+}
+message InjectResponse {}
+
 message ListRequest {
   message Pagination {
     // Inclusive
@@ -86,12 +95,14 @@ message Invoice {
   int64 id = 1;
   bytes payment_hash = 2;
   optional bytes preimage = 3;
-  string bolt11 = 4;
+  string invoice = 4;
   InvoiceState state = 5;
   uint64 created_at = 6;
   optional uint64 settled_at = 8;
 
   repeated Htlc htlcs = 7;
+
+  optional uint64 min_cltv_expiry = 9;
 }
 
 message ListResponse {
@@ -132,4 +143,32 @@ message TrackAllResponse {
   bytes payment_hash = 1;
   string bolt11 = 2;
   InvoiceState state = 3;
+}
+
+message OnionMessagesRequest {}
+message OnionMessage {
+  message ReplyBlindedPath {
+    message Hop {
+      optional bytes blinded_node_id = 1;
+      optional bytes encrypted_recipient_data = 2;
+    }
+
+    optional bytes first_node_id = 1;
+    optional string first_scid = 2;
+    optional uint64 first_scid_dir = 3;
+    optional bytes first_path_key = 4;
+    repeated Hop hops = 5;
+  }
+
+  message UnknownField {
+    uint64 number = 1;
+    bytes value = 2;
+  }
+
+  optional bytes pathsecret = 1;
+  optional ReplyBlindedPath reply_blindedpath = 2;
+  optional bytes invoice_request = 3;
+  optional bytes invoice = 4;
+  optional bytes invoice_error = 5;
+  repeated UnknownField unknown_fields = 6;
 }

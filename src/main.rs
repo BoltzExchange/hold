@@ -4,9 +4,13 @@ use crate::handler::Handler;
 use crate::settler::Settler;
 use anyhow::Result;
 use cln_plugin::{Builder, RpcMethodBuilder};
+use cln_rpc::ClnRpc;
+use cln_rpc::model::requests::GetinfoRequest;
 use log::{debug, error, info, warn};
 use std::fs;
 use std::path::Path;
+use std::sync::Arc;
+use tokio::sync::broadcast;
 use tokio_util::sync::CancellationToken;
 
 mod commands;
@@ -16,23 +20,28 @@ mod encoder;
 mod grpc;
 mod handler;
 mod hooks;
+mod invoice;
 mod settler;
 mod utils;
 
 #[derive(Clone)]
 struct State<T, E> {
+    our_id: [u8; 33],
     handler: Handler<T>,
     settler: Settler<T>,
     encoder: E,
     invoice_helper: T,
+    onion_msg_tx: broadcast::Sender<hooks::OnionMessage>,
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    std::env::set_var(
-        "CLN_PLUGIN_LOG",
-        "cln_plugin=trace,hold=trace,debug,info,warn,error",
-    );
+    unsafe {
+        std::env::set_var(
+            "CLN_PLUGIN_LOG",
+            "cln_plugin=trace,hold=trace,debug,info,warn,error",
+        );
+    }
 
     info!(
         "Starting plugin {}-{}{}",
@@ -52,6 +61,11 @@ async fn main() -> Result<()> {
         .option(OPTION_GRPC_HOST)
         .option(OPTION_GRPC_PORT)
         .hook("htlc_accepted", hooks::htlc_accepted)
+        .hook("onion_message_recv", hooks::onion_message_recv)
+        .hook(
+            "onion_message_recv_secret",
+            hooks::onion_message_recv_secret,
+        )
         .rpcmethod_from_builder(
             RpcMethodBuilder::new("listholdinvoices", commands::list_invoices)
                 .description("Lists hold invoices")
@@ -61,6 +75,11 @@ async fn main() -> Result<()> {
             RpcMethodBuilder::new("holdinvoice", commands::invoice)
                 .description("Creates a new hold invoice")
                 .usage("payment_hash amount"),
+        )
+        .rpcmethod_from_builder(
+            RpcMethodBuilder::new("injectholdinvoice", commands::inject_invoice)
+                .description("Injects a hold invoice")
+                .usage("invoice"),
         )
         .rpcmethod_from_builder(
             RpcMethodBuilder::new("settleholdinvoice", commands::settle)
@@ -168,8 +187,19 @@ async fn main() -> Result<()> {
     let invoice_helper = database::helpers::invoice_helper::InvoiceHelperDatabase::new(db);
     let mut settler = Settler::new(invoice_helper.clone(), mpp_timeout);
 
+    let our_id = ClnRpc::new(config.rpc_file)
+        .await?
+        .call_typed(&GetinfoRequest {})
+        .await?
+        .id
+        .serialize();
+
+    let (onion_msg_tx, onion_msg_rx) = broadcast::channel(1024);
+
     let plugin = plugin
         .start(State {
+            our_id,
+            onion_msg_tx,
             encoder: encoder.clone(),
             settler: settler.clone(),
             invoice_helper: invoice_helper.clone(),
@@ -185,9 +215,13 @@ async fn main() -> Result<()> {
         is_regtest,
         cancellation_token.clone(),
         std::env::current_dir()?.join(utils::built_info::PKG_NAME),
-        invoice_helper,
-        encoder,
-        settler.clone(),
+        grpc::server::State {
+            our_id,
+            encoder,
+            invoice_helper,
+            settler: settler.clone(),
+            onion_msg_rx: Arc::new(onion_msg_rx),
+        },
     );
 
     tokio::spawn(async move {
