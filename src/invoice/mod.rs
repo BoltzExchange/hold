@@ -76,9 +76,7 @@ impl Invoice {
                         }
                     }
 
-                    path.blinded_hops()
-                        .iter()
-                        .any(|hop| hop.blinded_node_id.serialize() == node_id)
+                    false
                 })
             }
         }
@@ -265,17 +263,7 @@ mod test {
             )
         );
         assert!(
-            invoice.related_to_node(
-                PublicKey::from_str(
-                    "026483ca100de5671d6dab0d8d8da610c0dac1d94479723df1c01fffcafa566693",
-                )
-                .unwrap()
-                .inner
-                .serialize()
-            )
-        );
-        assert!(
-            invoice.related_to_node(
+            !invoice.related_to_node(
                 PublicKey::from_str(
                     "0306d53e7e67c799f1ce218263946c68fcd5467a93b5d850b0b1aed691bd3adbc5",
                 )

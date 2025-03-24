@@ -26,7 +26,10 @@ from hold.utils import (
 
 
 def assert_failed_payment(
-    cl: HoldStub, payment_hash: bytes, dec: bolt11.Bolt11
+    cl: HoldStub,
+    payment_hash: bytes,
+    dec: bolt11.Bolt11,
+    reason: str = "FAILURE_REASON_INCORRECT_PAYMENT_DETAILS",
 ) -> None:
     invoice = lightning("signinvoice", bolt11.encode(dec))["bolt11"]
 
@@ -35,7 +38,7 @@ def assert_failed_payment(
     pay.join()
 
     assert pay.res["status"] == "FAILED"
-    assert pay.res["failure_reason"] == "FAILURE_REASON_INCORRECT_PAYMENT_DETAILS"
+    assert pay.res["failure_reason"] == reason
 
     list_invoice: Invoice = cl.List(
         ListRequest(
@@ -111,7 +114,7 @@ class TestHtlcs:
         dec = bolt11.decode(invoice.bolt11)
         dec.tags.get(TagChar.min_final_cltv_expiry).data = min_final_cltv_expiry - 21
 
-        assert_failed_payment(cl, payment_hash, dec)
+        assert_failed_payment(cl, payment_hash, dec, "FAILURE_REASON_ERROR")
 
     def test_acceptable_overpayment(self, cl: HoldStub) -> None:
         (preimage, payment_hash) = new_preimage_bytes()

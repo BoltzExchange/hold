@@ -39,6 +39,8 @@ pub struct Htlc {
 pub enum FailureMessage {
     #[serde(rename = "0017")]
     MppTimeout,
+    #[serde(rename = "0012")]
+    FinalIncorrectCltvExpiry,
     #[serde(rename = "400F")]
     IncorrectPaymentDetails,
 }

@@ -57,16 +57,7 @@ where
     T: InvoiceHelper + Sync + Send + Clone,
     E: InvoiceEncoder + Sync + Send + Clone,
 {
-    let msg = match serde_json::from_value::<OnionMessageRequest>(request) {
-        Ok(args) => args,
-        Err(err) => {
-            error!("Could not parse onion_message_recv hook params: {}", err);
-            return Ok(serde_json::to_value(OnionMessageResponse::Continue)?);
-        }
-    };
-    plugin.state().onion_msg_tx.send(msg.onion_message)?;
-
-    Ok(serde_json::to_value(OnionMessageResponse::Resolve)?)
+    handle_onion_message("onion_message_recv", plugin, request)
 }
 
 pub async fn onion_message_recv_secret<T, E>(
@@ -77,13 +68,22 @@ where
     T: InvoiceHelper + Sync + Send + Clone,
     E: InvoiceEncoder + Sync + Send + Clone,
 {
+    handle_onion_message("onion_message_recv_secret", plugin, request)
+}
+
+fn handle_onion_message<T, E>(
+    name: &str,
+    plugin: Plugin<State<T, E>>,
+    request: Value,
+) -> Result<Value>
+where
+    T: InvoiceHelper + Sync + Send + Clone,
+    E: InvoiceEncoder + Sync + Send + Clone,
+{
     let msg = match serde_json::from_value::<OnionMessageRequest>(request) {
         Ok(args) => args,
         Err(err) => {
-            error!(
-                "Could not parse onion_message_recv_secret hook params: {}",
-                err
-            );
+            error!("Could not parse {} hook params: {}", name, err);
             return Ok(serde_json::to_value(OnionMessageResponse::Continue)?);
         }
     };

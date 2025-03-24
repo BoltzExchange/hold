@@ -109,8 +109,7 @@ where
                 return self.reject_htlc(
                     &invoice,
                     &args,
-                    // TODO: use incorrect_cltv_expiry or expiry_too_soon error?
-                    FailureMessage::IncorrectPaymentDetails,
+                    FailureMessage::FinalIncorrectCltvExpiry,
                     format!(
                         "CLTV too little ({} < {})",
                         args.htlc.cltv_expiry_relative, min_cltv
@@ -457,7 +456,7 @@ mod test {
                 assert_eq!(
                     res,
                     HtlcCallbackResponse::Fail {
-                        failure_message: FailureMessage::IncorrectPaymentDetails
+                        failure_message: FailureMessage::FinalIncorrectCltvExpiry
                     }
                 );
             }
@@ -519,7 +518,7 @@ mod test {
                 assert_eq!(
                     res,
                     HtlcCallbackResponse::Fail {
-                        failure_message: FailureMessage::IncorrectPaymentDetails
+                        failure_message: FailureMessage::FinalIncorrectCltvExpiry
                     }
                 );
             }
