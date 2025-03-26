@@ -3,6 +3,7 @@ from __future__ import annotations
 import concurrent.futures
 import time
 from datetime import datetime, timezone
+from typing import TYPE_CHECKING
 
 import bolt11
 import pytest
@@ -12,6 +13,7 @@ from hold.protos.hold_pb2 import (
     CleanRequest,
     GetInfoRequest,
     GetInfoResponse,
+    HookAction,
     Hop,
     InjectRequest,
     Invoice,
@@ -21,7 +23,7 @@ from hold.protos.hold_pb2 import (
     ListRequest,
     ListResponse,
     OnionMessage,
-    OnionMessagesRequest,
+    OnionMessageResponse,
     RoutingHint,
     SettleRequest,
     TrackAllRequest,
@@ -36,6 +38,9 @@ from hold.utils import (
     new_preimage_bytes,
     time_now,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 
 class TestGrpc:
@@ -518,10 +523,14 @@ class TestGrpc:
             ]
 
     def test_onion_messages(self, cl: HoldStub) -> None:
+        def sender() -> Iterator[OnionMessageResponse]:
+            time.sleep(1)
+            yield OnionMessageResponse(action=HookAction.Resolve)
+
         offer = lightning("offer", "any", "msg", node=1)["bolt12"]
 
         def track_messages() -> OnionMessage | None:
-            sub = cl.OnionMessages(OnionMessagesRequest())
+            sub = cl.OnionMessages(sender())
             for msg in sub:
                 sub.cancel()
                 return msg

@@ -7,10 +7,9 @@ use cln_plugin::{Builder, RpcMethodBuilder};
 use cln_rpc::ClnRpc;
 use cln_rpc::model::requests::GetinfoRequest;
 use log::{debug, error, info, warn};
+use messenger::Messenger;
 use std::fs;
 use std::path::Path;
-use std::sync::Arc;
-use tokio::sync::broadcast;
 use tokio_util::sync::CancellationToken;
 
 mod commands;
@@ -21,6 +20,7 @@ mod grpc;
 mod handler;
 mod hooks;
 mod invoice;
+mod messenger;
 mod settler;
 mod utils;
 
@@ -31,7 +31,7 @@ struct State<T, E> {
     settler: Settler<T>,
     encoder: E,
     invoice_helper: T,
-    onion_msg_tx: broadcast::Sender<hooks::OnionMessage>,
+    messenger: Messenger,
 }
 
 #[tokio::main]
@@ -194,14 +194,20 @@ async fn main() -> Result<()> {
         .id
         .serialize();
 
-    let (onion_msg_tx, onion_msg_rx) = broadcast::channel(1024);
+    let messenger = Messenger::new();
+    {
+        let messenger = messenger.clone();
+        tokio::spawn(async move {
+            messenger.timeout_loop().await;
+        });
+    }
 
     let plugin = plugin
         .start(State {
             our_id,
-            onion_msg_tx,
             encoder: encoder.clone(),
             settler: settler.clone(),
+            messenger: messenger.clone(),
             invoice_helper: invoice_helper.clone(),
             handler: Handler::new(invoice_helper.clone(), settler.clone()),
         })
@@ -218,9 +224,9 @@ async fn main() -> Result<()> {
         grpc::server::State {
             our_id,
             encoder,
+            messenger,
             invoice_helper,
             settler: settler.clone(),
-            onion_msg_rx: Arc::new(onion_msg_rx),
         },
     );
 

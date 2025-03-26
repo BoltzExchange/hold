@@ -19,7 +19,12 @@ service Hold {
   rpc Track (TrackRequest) returns (stream TrackResponse) {}
   rpc TrackAll (TrackAllRequest) returns (stream TrackAllResponse) {}
 
-  rpc OnionMessages (OnionMessagesRequest) returns (stream OnionMessage) {}
+  rpc OnionMessages (stream OnionMessageResponse) returns (stream OnionMessage) {}
+}
+
+enum HookAction {
+  Continue = 0;
+  Resolve = 1;
 }
 
 message GetInfoRequest {}
@@ -145,7 +150,6 @@ message TrackAllResponse {
   InvoiceState state = 3;
 }
 
-message OnionMessagesRequest {}
 message OnionMessage {
   message ReplyBlindedPath {
     message Hop {
@@ -165,10 +169,16 @@ message OnionMessage {
     bytes value = 2;
   }
 
-  optional bytes pathsecret = 1;
-  optional ReplyBlindedPath reply_blindedpath = 2;
-  optional bytes invoice_request = 3;
-  optional bytes invoice = 4;
-  optional bytes invoice_error = 5;
-  repeated UnknownField unknown_fields = 6;
+  uint64 id = 1;
+  optional bytes pathsecret = 2;
+  optional ReplyBlindedPath reply_blindedpath = 3;
+  optional bytes invoice_request = 4;
+  optional bytes invoice = 5;
+  optional bytes invoice_error = 6;
+  repeated UnknownField unknown_fields = 7;
+}
+
+message OnionMessageResponse {
+  uint64 id = 1;
+  HookAction action = 2;
 }

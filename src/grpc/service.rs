@@ -6,23 +6,23 @@ use crate::grpc::service::hold::invoice_request::Description;
 use crate::grpc::service::hold::list_request::Constraint;
 use crate::grpc::service::hold::{
     CancelRequest, CancelResponse, CleanRequest, CleanResponse, GetInfoRequest, GetInfoResponse,
-    InjectRequest, InjectResponse, InvoiceRequest, InvoiceResponse, ListRequest, ListResponse,
-    OnionMessage, OnionMessagesRequest, SettleRequest, SettleResponse, TrackAllRequest,
-    TrackAllResponse, TrackRequest, TrackResponse,
+    HookAction, InjectRequest, InjectResponse, InvoiceRequest, InvoiceResponse, ListRequest,
+    ListResponse, OnionMessage, OnionMessageResponse, SettleRequest, SettleResponse,
+    TrackAllRequest, TrackAllResponse, TrackRequest, TrackResponse,
 };
 use crate::grpc::transformers::{transform_invoice_state, transform_route_hints};
 use crate::invoice::Invoice;
+use crate::messenger::Messenger;
 use crate::settler::Settler;
 use bitcoin::hashes::{Hash, sha256};
 use log::{debug, error, warn};
 use std::collections::HashMap;
 use std::pin::Pin;
 use std::str::FromStr;
-use std::sync::Arc;
-use tokio::sync::{broadcast, mpsc};
-use tonic::codegen::tokio_stream::Stream;
+use tokio::sync::mpsc;
 use tonic::codegen::tokio_stream::wrappers::ReceiverStream;
-use tonic::{Code, Request, Response, Status, async_trait};
+use tonic::codegen::tokio_stream::{Stream, StreamExt};
+use tonic::{Code, Request, Response, Status, Streaming, async_trait};
 
 pub mod hold {
     tonic::include_proto!("hold");
@@ -33,7 +33,7 @@ pub struct HoldService<T, E> {
     encoder: E,
     invoice_helper: T,
     settler: Settler<T>,
-    onion_msg_rx: Arc<broadcast::Receiver<crate::hooks::OnionMessage>>,
+    messenger: Messenger,
 }
 
 impl<T, E> HoldService<T, E>
@@ -46,13 +46,13 @@ where
         invoice_helper: T,
         encoder: E,
         settler: Settler<T>,
-        onion_msg_rx: Arc<broadcast::Receiver<crate::hooks::OnionMessage>>,
+        messenger: Messenger,
     ) -> Self {
         HoldService {
             our_id,
             encoder,
             settler,
-            onion_msg_rx,
+            messenger,
             invoice_helper,
         }
     }
@@ -457,10 +457,35 @@ where
 
     async fn onion_messages(
         &self,
-        _request: Request<OnionMessagesRequest>,
+        response: Request<Streaming<OnionMessageResponse>>,
     ) -> Result<Response<Self::OnionMessagesStream>, Status> {
         let (tx, rx) = mpsc::channel(128);
-        let mut onion_rx = self.onion_msg_rx.resubscribe();
+        let mut onion_rx = self.messenger.subscribe();
+
+        {
+            let messenger = self.messenger.clone();
+            let mut in_stream = response.into_inner();
+            tokio::spawn(async move {
+                while let Some(res) = in_stream.next().await {
+                    match res {
+                        Ok(res) => {
+                            messenger.send_response(
+                                res.id,
+                                if res.action == HookAction::Continue as i32 {
+                                    crate::hooks::onion_message::OnionMessageResponse::Continue
+                                } else {
+                                    crate::hooks::onion_message::OnionMessageResponse::Resolve
+                                },
+                            );
+                        }
+                        Err(err) => {
+                            error!("Onion message response error: {}", err);
+                            break;
+                        }
+                    }
+                }
+            });
+        }
 
         tokio::spawn(async move {
             loop {
