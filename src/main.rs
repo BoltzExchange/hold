@@ -43,17 +43,6 @@ async fn main() -> Result<()> {
         );
     }
 
-    info!(
-        "Starting plugin {}-{}{}",
-        utils::built_info::PKG_VERSION,
-        utils::built_info::GIT_COMMIT_HASH_SHORT.unwrap_or(""),
-        if utils::built_info::GIT_DIRTY.unwrap_or(false) {
-            "-dirty"
-        } else {
-            ""
-        }
-    );
-
     let plugin = match Builder::new(tokio::io::stdin(), tokio::io::stdout())
         .dynamic()
         .option(OPTION_DATABASE)
@@ -156,6 +145,17 @@ async fn main() -> Result<()> {
     if !plugin_dir.exists() {
         fs::create_dir(plugin_dir)?;
     }
+
+    info!(
+        "Starting plugin {}-{}{}",
+        utils::built_info::PKG_VERSION,
+        utils::built_info::GIT_COMMIT_HASH_SHORT.unwrap_or(""),
+        if utils::built_info::GIT_DIRTY.unwrap_or(false) {
+            "-dirty"
+        } else {
+            ""
+        }
+    );
 
     let db = match database::connect(&db_url) {
         Ok(db) => db,
