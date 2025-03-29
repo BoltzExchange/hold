@@ -7,10 +7,9 @@ use cln_plugin::{Builder, RpcMethodBuilder};
 use cln_rpc::ClnRpc;
 use cln_rpc::model::requests::GetinfoRequest;
 use log::{debug, error, info, warn};
+use messenger::Messenger;
 use std::fs;
 use std::path::Path;
-use std::sync::Arc;
-use tokio::sync::broadcast;
 use tokio_util::sync::CancellationToken;
 
 mod commands;
@@ -21,6 +20,7 @@ mod grpc;
 mod handler;
 mod hooks;
 mod invoice;
+mod messenger;
 mod settler;
 mod utils;
 
@@ -31,7 +31,7 @@ struct State<T, E> {
     settler: Settler<T>,
     encoder: E,
     invoice_helper: T,
-    onion_msg_tx: broadcast::Sender<hooks::OnionMessage>,
+    messenger: Messenger,
 }
 
 #[tokio::main]
@@ -42,17 +42,6 @@ async fn main() -> Result<()> {
             "cln_plugin=trace,hold=trace,debug,info,warn,error",
         );
     }
-
-    info!(
-        "Starting plugin {}-{}{}",
-        utils::built_info::PKG_VERSION,
-        utils::built_info::GIT_COMMIT_HASH_SHORT.unwrap_or(""),
-        if utils::built_info::GIT_DIRTY.unwrap_or(false) {
-            "-dirty"
-        } else {
-            ""
-        }
-    );
 
     let plugin = match Builder::new(tokio::io::stdin(), tokio::io::stdout())
         .dynamic()
@@ -157,6 +146,17 @@ async fn main() -> Result<()> {
         fs::create_dir(plugin_dir)?;
     }
 
+    info!(
+        "Starting plugin {}-{}{}",
+        utils::built_info::PKG_VERSION,
+        utils::built_info::GIT_COMMIT_HASH_SHORT.unwrap_or(""),
+        if utils::built_info::GIT_DIRTY.unwrap_or(false) {
+            "-dirty"
+        } else {
+            ""
+        }
+    );
+
     let db = match database::connect(&db_url) {
         Ok(db) => db,
         Err(err) => {
@@ -194,14 +194,20 @@ async fn main() -> Result<()> {
         .id
         .serialize();
 
-    let (onion_msg_tx, onion_msg_rx) = broadcast::channel(1024);
+    let messenger = Messenger::new();
+    {
+        let messenger = messenger.clone();
+        tokio::spawn(async move {
+            messenger.timeout_loop().await;
+        });
+    }
 
     let plugin = plugin
         .start(State {
             our_id,
-            onion_msg_tx,
             encoder: encoder.clone(),
             settler: settler.clone(),
+            messenger: messenger.clone(),
             invoice_helper: invoice_helper.clone(),
             handler: Handler::new(invoice_helper.clone(), settler.clone()),
         })
@@ -218,9 +224,9 @@ async fn main() -> Result<()> {
         grpc::server::State {
             our_id,
             encoder,
+            messenger,
             invoice_helper,
             settler: settler.clone(),
-            onion_msg_rx: Arc::new(onion_msg_rx),
         },
     );
 

@@ -3,14 +3,13 @@ use crate::encoder::InvoiceEncoder;
 use crate::grpc::service::HoldService;
 use crate::grpc::service::hold::hold_server::HoldServer;
 use crate::grpc::tls::load_certificates;
+use crate::messenger::Messenger;
 use crate::settler::Settler;
 use anyhow::Result;
 use log::info;
 use std::net::{IpAddr, SocketAddr};
 use std::path::PathBuf;
 use std::str::FromStr;
-use std::sync::Arc;
-use tokio::sync::broadcast;
 use tokio_util::sync::CancellationToken;
 use tonic::transport::ServerTlsConfig;
 
@@ -19,7 +18,7 @@ pub struct State<T, E> {
     pub encoder: E,
     pub invoice_helper: T,
     pub settler: Settler<T>,
-    pub onion_msg_rx: Arc<broadcast::Receiver<crate::hooks::OnionMessage>>,
+    pub messenger: Messenger,
 }
 
 pub struct Server<T, E> {
@@ -92,7 +91,7 @@ where
                 self.state.invoice_helper.clone(),
                 self.state.encoder.clone(),
                 self.state.settler.clone(),
-                self.state.onion_msg_rx.clone(),
+                self.state.messenger.clone(),
             )))
             .serve_with_shutdown(socket_addr, async move {
                 self.cancellation_token.cancelled().await;
@@ -110,14 +109,13 @@ mod test {
     use crate::grpc::server::{Server, State};
     use crate::grpc::service::hold::GetInfoRequest;
     use crate::grpc::service::hold::hold_client::HoldClient;
+    use crate::messenger::Messenger;
     use crate::settler::Settler;
     use anyhow::Result;
     use mockall::mock;
     use std::fs;
     use std::path::{Path, PathBuf};
-    use std::sync::Arc;
     use std::time::Duration;
-    use tokio::sync::broadcast;
     use tokio::task::JoinHandle;
     use tokio_util::sync::CancellationToken;
     use tonic::async_trait;
@@ -246,8 +244,6 @@ mod test {
         let certs_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join(format!("test-certs-{}", port));
 
         let token = CancellationToken::new();
-
-        let (_, rx) = broadcast::channel(1);
         let server = Server::new(
             "127.0.0.1",
             port,
@@ -256,10 +252,10 @@ mod test {
             certs_dir.clone(),
             State {
                 our_id: [0; 33],
+                messenger: Messenger::new(),
                 encoder: make_mock_invoice_encoder(),
                 invoice_helper: make_mock_invoice_helper(),
                 settler: Settler::new(make_mock_invoice_helper(), 60),
-                onion_msg_rx: Arc::new(rx),
             },
         );
 

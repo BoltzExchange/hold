@@ -6,14 +6,15 @@ use cln_plugin::Plugin;
 use log::error;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::hash::{DefaultHasher, Hash, Hasher};
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Hash, Deserialize)]
 pub struct BlindedPathHops {
     pub blinded_node_id: Option<String>,
     pub encrypted_recipient_data: Option<String>,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Hash, Deserialize)]
 pub struct ReplyBlindedPath {
     pub first_node_id: Option<String>,
     pub first_scid: Option<String>,
@@ -22,13 +23,13 @@ pub struct ReplyBlindedPath {
     pub hops: Vec<BlindedPathHops>,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Hash, Deserialize)]
 pub struct UnknownField {
     pub number: u64,
     pub value: String,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Hash, Deserialize)]
 pub struct OnionMessage {
     pub pathsecret: Option<String>,
     pub reply_blindedpath: Option<ReplyBlindedPath>,
@@ -38,7 +39,7 @@ pub struct OnionMessage {
     pub unknown_fields: Vec<UnknownField>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Hash, Deserialize)]
 pub struct OnionMessageRequest {
     pub onion_message: OnionMessage,
 }
@@ -52,12 +53,20 @@ pub enum OnionMessageResponse {
     Resolve,
 }
 
+impl OnionMessage {
+    pub fn id(&self) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        self.hash(&mut hasher);
+        hasher.finish()
+    }
+}
+
 pub async fn onion_message_recv<T, E>(plugin: Plugin<State<T, E>>, request: Value) -> Result<Value>
 where
     T: InvoiceHelper + Sync + Send + Clone,
     E: InvoiceEncoder + Sync + Send + Clone,
 {
-    handle_onion_message("onion_message_recv", plugin, request)
+    handle_onion_message("onion_message_recv", plugin, request).await
 }
 
 pub async fn onion_message_recv_secret<T, E>(
@@ -68,10 +77,10 @@ where
     T: InvoiceHelper + Sync + Send + Clone,
     E: InvoiceEncoder + Sync + Send + Clone,
 {
-    handle_onion_message("onion_message_recv_secret", plugin, request)
+    handle_onion_message("onion_message_recv_secret", plugin, request).await
 }
 
-fn handle_onion_message<T, E>(
+async fn handle_onion_message<T, E>(
     name: &str,
     plugin: Plugin<State<T, E>>,
     request: Value,
@@ -87,7 +96,16 @@ where
             return Ok(serde_json::to_value(OnionMessageResponse::Continue)?);
         }
     };
-    plugin.state().onion_msg_tx.send(msg.onion_message)?;
 
-    Ok(serde_json::to_value(OnionMessageResponse::Resolve)?)
+    Ok(serde_json::to_value(
+        plugin
+            .state()
+            .messenger
+            .received_message(msg.onion_message)
+            .await
+            .unwrap_or_else(|err| {
+                error!("Could not wait for onion message resolution: {}", err);
+                OnionMessageResponse::Continue
+            }),
+    )?)
 }

@@ -99,6 +99,7 @@ impl TryFrom<OnionMessage> for hold::OnionMessage {
 
     fn try_from(value: OnionMessage) -> Result<Self, Self::Error> {
         Ok(Self {
+            id: value.id(),
             pathsecret: hex_from_str(value.pathsecret)?,
             reply_blindedpath: value
                 .reply_blindedpath
