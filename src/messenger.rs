@@ -54,16 +54,21 @@ impl Messenger {
     pub fn received_message(
         &self,
         message: OnionMessage,
-    ) -> oneshot::Receiver<OnionMessageResponse> {
-        let (tx, rx) = oneshot::channel();
+    ) -> Option<oneshot::Receiver<OnionMessageResponse>> {
         trace!("Received onion message: {}", message.id());
+        if self.tx.receiver_count() == 0 {
+            trace!("No subscribers, continuing onion message: {}", message.id());
+            return None;
+        }
+
+        let (tx, rx) = oneshot::channel();
         self.pending_messages
             .lock()
             .unwrap()
             .insert(message.id(), (SystemTime::now(), tx));
         let _ = self.tx.send(message);
 
-        rx
+        Some(rx)
     }
 
     fn check_timeouts(&self) {
@@ -117,8 +122,19 @@ mod tests {
 
         messenger.send_response(test_message.id(), OnionMessageResponse::Continue);
 
-        let response = response_rx.await.unwrap();
+        let response = response_rx.unwrap().await.unwrap();
         assert_eq!(response, OnionMessageResponse::Continue);
+    }
+
+    #[tokio::test]
+    async fn test_received_message_no_subscribers() {
+        let messenger = Messenger::new();
+        let test_message = create_test_message(1, vec![1, 2, 3]);
+
+        let response_rx = messenger.received_message(test_message.clone());
+
+        assert!(response_rx.is_none());
+        assert!(messenger.pending_messages.lock().unwrap().is_empty());
     }
 
     #[tokio::test]
