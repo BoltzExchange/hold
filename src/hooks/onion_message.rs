@@ -97,15 +97,15 @@ where
         }
     };
 
-    Ok(serde_json::to_value(
-        plugin
-            .state()
-            .messenger
-            .received_message(msg.onion_message)
-            .await
-            .unwrap_or_else(|err| {
-                error!("Could not wait for onion message resolution: {}", err);
-                OnionMessageResponse::Continue
-            }),
-    )?)
+    let msg_recv = match plugin.state().messenger.received_message(msg.onion_message) {
+        Some(rx) => rx,
+        None => return Ok(serde_json::to_value(OnionMessageResponse::Continue)?),
+    };
+
+    Ok(serde_json::to_value(msg_recv.await.unwrap_or_else(
+        |err| {
+            error!("Could not wait for onion message resolution: {}", err);
+            OnionMessageResponse::Continue
+        },
+    ))?)
 }
