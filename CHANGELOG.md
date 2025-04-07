@@ -3,6 +3,35 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 ---
+## [0.3.0](https://github.com/BoltzExchange/hold/compare/v0.2.2..v0.3.0) - 2025-04-01
+
+### Bug Fixes
+
+- correct error for too little CLTV - ([489d659](https://github.com/BoltzExchange/hold/commit/489d6596bd9b454c18ddc365fb7d3cab5d721d9e))
+
+### Features
+
+- BOLT12 hold invoices - ([925716a](https://github.com/BoltzExchange/hold/commit/925716ae82b91468c8ad95f7ef8b2d08b41e4f27))
+- onion message subscription - ([5975c4f](https://github.com/BoltzExchange/hold/commit/5975c4fb0eb7ca919b023c944b11f23197095df4))
+- explicit min CLTV - ([7e786f3](https://github.com/BoltzExchange/hold/commit/7e786f33c8bc8bc3fa496096272141e99d610e49))
+- onion message resolver - ([4894341](https://github.com/BoltzExchange/hold/commit/4894341e7381b0a6322b14353afb9b3b5a3f125d))
+
+### Miscellaneous Chores
+
+- bump CHANGELOG to v0.2.2 - ([7c27d49](https://github.com/BoltzExchange/hold/commit/7c27d49e11c35400d9281ce15a2b9900944f4729))
+- rename bolt11 to invoice - ([982f840](https://github.com/BoltzExchange/hold/commit/982f8402244fc294ee045a9a6e032cff9080ad84))
+- clippy fixes - ([390f5bc](https://github.com/BoltzExchange/hold/commit/390f5bc4182c48b313fd057a56c72fbcbf39bdc7))
+- fix CI on updated Ubuntu image - ([3894624](https://github.com/BoltzExchange/hold/commit/38946242b716ab0cc90b5aced464fcbaf5748710))
+- bump dependencies - ([2b33ad4](https://github.com/BoltzExchange/hold/commit/2b33ad41f3ca6ca62ade6e9b46b2f7e47adf059e))
+- move startup log to be printed - ([d85b771](https://github.com/BoltzExchange/hold/commit/d85b7716dd927a2b3b872c92cf701ec94368e3d3))
+- update regtest - ([4aad423](https://github.com/BoltzExchange/hold/commit/4aad423e9970dd8886bb2b292f0e69b2991f4dd0))
+
+### Refactoring
+
+- rename blinding to first_path_key - ([3314e6d](https://github.com/BoltzExchange/hold/commit/3314e6d41a3a1e520ebb4223afc7df96a19614cb))
+- continue onion messages when there are no subscribers - ([2a37ce5](https://github.com/BoltzExchange/hold/commit/2a37ce50ff7450e571aaff56c6f3cdc7e442a2eb))
+
+---
 ## [0.2.2](https://github.com/BoltzExchange/hold/compare/v0.2.1..v0.2.2) - 2025-03-08
 
 ### Bug Fixes
