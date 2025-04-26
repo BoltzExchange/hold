@@ -31,10 +31,10 @@ impl Display for SettleError {
             SettleError::NoHtlcsToSettle => write!(f, "no HTLCs to settle"),
             SettleError::InvoiceNotFound => write!(f, "invoice not found"),
             SettleError::DatabaseFetchError(err) => {
-                write!(f, "could not fetch invoice from database: {}", err)
+                write!(f, "could not fetch invoice from database: {err}")
             }
             SettleError::DatabaseUpdateError(err) => {
-                write!(f, "could not update invoice in database: {}", err)
+                write!(f, "could not update invoice in database: {err}")
             }
         }
     }
@@ -214,10 +214,7 @@ where
     }
 
     pub async fn mpp_timeout_loop(&mut self) {
-        info!(
-            "Checking for MPP timeouts every {} seconds",
-            MPP_INTERVAL_SECONDS
-        );
+        info!("Checking for MPP timeouts every {MPP_INTERVAL_SECONDS} seconds");
         let mut interval = time::interval(Duration::from_secs(MPP_INTERVAL_SECONDS));
 
         loop {
@@ -239,7 +236,7 @@ where
                         }
                     },
                     Err(err) => {
-                        warn!("Could not fetch invoice: {}", err);
+                        warn!("Could not fetch invoice: {err}");
                         continue;
                     }
                 };
@@ -253,7 +250,7 @@ where
                     let since_accepted = match now.duration_since(htlc.time) {
                         Ok(since) => since,
                         Err(err) => {
-                            warn!("Could not compare time since HTLC was accepted: {}", err);
+                            warn!("Could not compare time since HTLC was accepted: {err}");
                             continue;
                         }
                     };
@@ -295,7 +292,7 @@ where
                         match InvoiceState::try_from(&htlc_db.state) {
                             Ok(state) => state,
                             Err(err) => {
-                                warn!("Could not parse HTLC database state: {}", err);
+                                warn!("Could not parse HTLC database state: {err}");
                                 continue;
                             }
                         },

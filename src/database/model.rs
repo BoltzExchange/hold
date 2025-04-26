@@ -69,9 +69,9 @@ pub enum StateTransitionError {
 impl Display for StateTransitionError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match *self {
-            StateTransitionError::IsFinal(state) => write!(f, "state {} is final", state),
+            StateTransitionError::IsFinal(state) => write!(f, "state {state} is final"),
             StateTransitionError::InvalidTransition(old, new) => {
-                write!(f, "invoice state transition ({} -> {})", old, new)
+                write!(f, "invoice state transition ({old} -> {new})")
             }
         }
     }
@@ -88,7 +88,7 @@ impl Display for InvoiceStateParsingError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             InvoiceStateParsingError::InvalidInvariant(state) => {
-                write!(f, "invalid invoice state invariant: {}", state)
+                write!(f, "invalid invoice state invariant: {state}")
             }
         }
     }

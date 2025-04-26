@@ -64,7 +64,7 @@ where
     let args = match serde_json::from_value::<HtlcCallbackRequest>(request) {
         Ok(args) => args,
         Err(err) => {
-            error!("Could not parse htlc_accepted hook params: {}", err);
+            error!("Could not parse htlc_accepted hook params: {err}");
             // Continue to not crash CLN
             return Ok(serde_json::to_value(HtlcCallbackResponse::Continue)?);
         }
@@ -74,7 +74,7 @@ where
     let resolution = match plugin.state().handler.clone().htlc_accepted(args).await {
         Resolution::Resolution(res) => res,
         Resolution::Resolver(solver) => solver.await.unwrap_or_else(|err| {
-            error!("Could not wait for HTLC resolution: {}", err);
+            error!("Could not wait for HTLC resolution: {err}");
             HtlcCallbackResponse::Continue
         }),
     };

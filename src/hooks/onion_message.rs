@@ -92,7 +92,7 @@ where
     let msg = match serde_json::from_value::<OnionMessageRequest>(request) {
         Ok(args) => args,
         Err(err) => {
-            error!("Could not parse {} hook params: {}", name, err);
+            error!("Could not parse {name} hook params: {err}");
             return Ok(serde_json::to_value(OnionMessageResponse::Continue)?);
         }
     };
@@ -104,7 +104,7 @@ where
 
     Ok(serde_json::to_value(msg_recv.await.unwrap_or_else(
         |err| {
-            error!("Could not wait for onion message resolution: {}", err);
+            error!("Could not wait for onion message resolution: {err}");
             OnionMessageResponse::Continue
         },
     ))?)

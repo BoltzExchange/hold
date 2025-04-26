@@ -49,7 +49,7 @@ pub fn connect(url: &str) -> Result<Pool, Box<dyn Error + Send + Sync>> {
         "SQLite"
     };
 
-    debug!("Connecting to {} database", db_name);
+    debug!("Connecting to {db_name} database");
     let manager: ConnectionManager<AnyConnection> = ConnectionManager::new(url);
     let pool = Pool::builder()
         .connection_customizer(Box::new(ConnectionOptions {
@@ -57,7 +57,7 @@ pub fn connect(url: &str) -> Result<Pool, Box<dyn Error + Send + Sync>> {
         }))
         .build(manager)?;
 
-    info!("Connected to {} database", db_name);
+    info!("Connected to {db_name} database");
 
     debug!("Running migrations");
     let mut con = pool.get()?;

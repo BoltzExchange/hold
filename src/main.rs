@@ -96,7 +96,7 @@ async fn main() -> Result<()> {
         Ok(host) => host,
         Err(err) => {
             plugin
-                .disable(format!("invalid database URL: {}", err).as_str())
+                .disable(format!("invalid database URL: {err}").as_str())
                 .await?;
             return Ok(());
         }
@@ -113,7 +113,7 @@ async fn main() -> Result<()> {
         }
         Err(err) => {
             plugin
-                .disable(format!("invalid MPP timeout: {}", err).as_str())
+                .disable(format!("invalid MPP timeout: {err}").as_str())
                 .await?;
             return Ok(());
         }
@@ -123,7 +123,7 @@ async fn main() -> Result<()> {
         Ok(host) => host,
         Err(err) => {
             plugin
-                .disable(format!("invalid gRPC host: {}", err).as_str())
+                .disable(format!("invalid gRPC host: {err}").as_str())
                 .await?;
             return Ok(());
         }
@@ -133,7 +133,7 @@ async fn main() -> Result<()> {
         Ok(port) => port,
         Err(err) => {
             plugin
-                .disable(format!("invalid gRPC port: {}", err).as_str())
+                .disable(format!("invalid gRPC port: {err}").as_str())
                 .await?;
             return Ok(());
         }
@@ -161,7 +161,7 @@ async fn main() -> Result<()> {
         Ok(db) => db,
         Err(err) => {
             plugin
-                .disable(format!("could not connect to database: {}", err).as_str())
+                .disable(format!("could not connect to database: {err}").as_str())
                 .await?;
             return Ok(());
         }
@@ -171,7 +171,7 @@ async fn main() -> Result<()> {
         Ok(res) => res,
         Err(err) => {
             plugin
-                .disable(format!("could not parse network: {}", err).as_str())
+                .disable(format!("could not parse network: {err}").as_str())
                 .await?;
             return Ok(());
         }
@@ -181,7 +181,7 @@ async fn main() -> Result<()> {
 
     if is_regtest {
         mpp_timeout = 10;
-        warn!("Using MPP timeout of {} seconds on regtest", mpp_timeout);
+        warn!("Using MPP timeout of {mpp_timeout} seconds on regtest");
     }
 
     let invoice_helper = database::helpers::invoice_helper::InvoiceHelperDatabase::new(db);
@@ -240,7 +240,7 @@ async fn main() -> Result<()> {
         }
         res = grpc_server.start() => {
             if let Err(err) = res {
-                error!("Could not start gRPC server: {}", err);
+                error!("Could not start gRPC server: {err}");
             }
         }
     }

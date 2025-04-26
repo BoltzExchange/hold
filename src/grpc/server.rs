@@ -75,7 +75,7 @@ where
             })?,
             self.port as u16,
         );
-        info!("Starting gRPC server on: {}", socket_addr);
+        info!("Starting gRPC server on: {socket_addr}");
 
         let (identity, ca) = load_certificates(self.directory.clone())?;
         let mut server = tonic::transport::Server::builder().tls_config(
@@ -188,7 +188,7 @@ mod test {
                 fs::read_to_string(certs_dir.clone().join("client-key.pem")).unwrap(),
             ));
 
-        let channel = Channel::from_shared(format!("https://127.0.0.1:{}", port))
+        let channel = Channel::from_shared(format!("https://127.0.0.1:{port}"))
             .unwrap()
             .tls_config(tls)
             .unwrap()
@@ -221,7 +221,7 @@ mod test {
                 fs::read_to_string(certs_dir.clone().join("ca.pem")).unwrap(),
             ));
 
-        let channel = Channel::from_shared(format!("https://127.0.0.1:{}", port))
+        let channel = Channel::from_shared(format!("https://127.0.0.1:{port}"))
             .unwrap()
             .tls_config(tls)
             .unwrap()
@@ -241,7 +241,7 @@ mod test {
     }
 
     async fn start_server_tls(port: i64) -> (PathBuf, CancellationToken, JoinHandle<()>) {
-        let certs_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join(format!("test-certs-{}", port));
+        let certs_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join(format!("test-certs-{port}"));
 
         let token = CancellationToken::new();
         let server = Server::new(
