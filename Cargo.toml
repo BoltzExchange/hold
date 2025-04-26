@@ -14,9 +14,9 @@ codegen-units = 1
 panic = "abort"
 
 [dependencies]
-anyhow = "1.0.95"
+anyhow = "1.0.98"
 cln-plugin = "0.4.0"
-diesel = { version = "2.2.6", features = [
+diesel = { version = "2.2.10", features = [
     "postgres",
     "r2d2",
     "chrono",
@@ -26,18 +26,18 @@ diesel_migrations = "2.2.0"
 log = { version = "0.4.27", features = [] }
 prost = "0.13.4"
 rcgen = { version = "0.13.2", features = ["x509-parser"] }
-tokio = { version = "1.43.0", features = ["macros", "rt-multi-thread", "sync"] }
+tokio = { version = "1.44.2", features = ["macros", "rt-multi-thread", "sync"] }
 tonic = { version = "0.13.0", features = ["prost", "gzip", "zstd", "tls-aws-lc"] }
 serde = { version = "1.0.217", features = ["derive"] }
 serde_json = { version = "1.0.137", features = ["preserve_order"] }
-lightning-invoice = { version = "0.33.0", features = ["std"] }
+lightning-invoice = { version = "0.33.2", features = ["std"] }
 chrono = { version = "0.4.39", features = ["serde"] }
 bitcoin = { version = "0.32.5", features = ["rand-std"] }
 secp256k1 = "0.29.1"
 cln-rpc = "0.4.0"
 hex = "0.4.3"
-tokio-util = "0.7.13"
-lightning = { version = "0.1.0", features = ["std"] }
+tokio-util = "0.7.15"
+lightning = { version = "0.1.2", features = ["std"] }
 bech32 = "0.11.0"
 
 [build-dependencies]
