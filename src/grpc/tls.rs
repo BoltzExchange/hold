@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 use tonic::transport::{Certificate, Identity};
 
 pub fn load_certificates(base_path: PathBuf) -> Result<(Identity, Certificate)> {
-    debug!("Loading gRPC certificates from: {:?}", base_path);
+    debug!("Loading gRPC certificates from: {base_path:?}");
     let base = Path::new(base_path.as_path());
 
     if !base.exists() {
@@ -41,15 +41,15 @@ fn generate_or_load_certificate(
     file_name: &str,
     parent: Option<(&KeyPair, &rcgen::Certificate)>,
 ) -> Result<(Vec<u8>, Vec<u8>)> {
-    let key_path = directory.join(format!("{}-key.pem", file_name));
-    let cert_path = directory.join(format!("{}.pem", file_name));
+    let key_path = directory.join(format!("{file_name}-key.pem"));
+    let cert_path = directory.join(format!("{file_name}.pem"));
 
     if !key_path.exists() || !cert_path.exists() {
-        debug!("Creating new certificates for: {}", name);
+        debug!("Creating new certificates for: {name}");
         return generate_certificate(name, key_path, cert_path, parent);
     }
 
-    trace!("Found existing certificates for: {}", name);
+    trace!("Found existing certificates for: {name}");
     Ok((fs::read(key_path)?, fs::read(cert_path)?))
 }
 

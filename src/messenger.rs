@@ -30,10 +30,7 @@ impl Messenger {
 
     pub async fn timeout_loop(&self) {
         let mut interval = tokio::time::interval(Duration::from_secs(MESSAGE_TIMEOUT));
-        trace!(
-            "Timing out pending onion messages every {} seconds",
-            MESSAGE_TIMEOUT
-        );
+        trace!("Timing out pending onion messages every {MESSAGE_TIMEOUT} seconds");
         loop {
             interval.tick().await;
             self.check_timeouts();
@@ -46,7 +43,7 @@ impl Messenger {
 
     pub fn send_response(&self, id: u64, response: OnionMessageResponse) {
         if let Some((_, tx)) = self.pending_messages.lock().unwrap().remove(&id) {
-            trace!("Sending response to onion message: {}", id);
+            trace!("Sending response to onion message: {id}");
             let _ = tx.send(response);
         }
     }
@@ -84,7 +81,7 @@ impl Messenger {
 
         for key in keys_to_remove {
             let (_, tx) = pending_messages.remove(&key).unwrap();
-            trace!("Timed out pending onion message: {}", key);
+            trace!("Timed out pending onion message: {key}");
             let _ = tx.send(OnionMessageResponse::Continue);
         }
     }
@@ -97,7 +94,7 @@ mod tests {
 
     fn create_test_message(id: u64, data: Vec<u8>) -> OnionMessage {
         OnionMessage {
-            pathsecret: Some(format!("secret_{}", id)),
+            pathsecret: Some(format!("secret_{id}")),
             reply_blindedpath: None,
             invoice_request: None,
             invoice: None,

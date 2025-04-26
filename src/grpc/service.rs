@@ -84,7 +84,7 @@ where
             Err(err) => {
                 return Err(Status::new(
                     Code::InvalidArgument,
-                    format!("invalid routing hint: {}", err),
+                    format!("invalid routing hint: {err}"),
                 ));
             }
         };
@@ -113,7 +113,7 @@ where
             Err(err) => {
                 return Err(Status::new(
                     Code::Internal,
-                    format!("could not encode invoice: {}", err),
+                    format!("could not encode invoice: {err}"),
                 ));
             }
         };
@@ -126,7 +126,7 @@ where
         }) {
             return Err(Status::new(
                 Code::Internal,
-                format!("could not save invoice: {}", err),
+                format!("could not save invoice: {err}"),
             ));
         }
 
@@ -142,9 +142,8 @@ where
     ) -> Result<Response<InjectResponse>, Status> {
         let params = request.into_inner();
 
-        let invoice = Invoice::from_str(&params.invoice).map_err(|err| {
-            Status::new(Code::InvalidArgument, format!("invalid invoice: {}", err))
-        })?;
+        let invoice = Invoice::from_str(&params.invoice)
+            .map_err(|err| Status::new(Code::InvalidArgument, format!("invalid invoice: {err}")))?;
 
         // Sanity check that the invoice can go through us
         if !invoice.related_to_node(self.our_id) {
@@ -161,9 +160,7 @@ where
                 state: InvoiceState::Unpaid.into(),
                 min_cltv: params.min_cltv_expiry.map(|cltv| cltv as i32),
             })
-            .map_err(|err| {
-                Status::new(Code::Internal, format!("could not save invoice: {}", err))
-            })?;
+            .map_err(|err| Status::new(Code::Internal, format!("could not save invoice: {err}")))?;
 
         self.settler.new_invoice(
             params.invoice,
@@ -200,7 +197,7 @@ where
             })),
             Err(err) => Err(Status::new(
                 Code::Internal,
-                format!("could not fetch invoices: {}", err),
+                format!("could not fetch invoices: {err}"),
             )),
         }
     }
@@ -220,7 +217,7 @@ where
         {
             return Err(Status::new(
                 Code::Internal,
-                format!("could not settle invoice: {}", err),
+                format!("could not settle invoice: {err}"),
             ));
         };
 
@@ -239,7 +236,7 @@ where
         {
             return Err(Status::new(
                 Code::Internal,
-                format!("could not cancel invoice: {}", err),
+                format!("could not cancel invoice: {err}"),
             ));
         };
 
@@ -257,7 +254,7 @@ where
             })),
             Err(err) => Err(Status::new(
                 Code::Internal,
-                format!("could not clean invoices: {}", err),
+                format!("could not clean invoices: {err}"),
             )),
         }
     }
@@ -289,17 +286,17 @@ where
                                 }))
                                 .await
                             {
-                                error!("Could not send invoice state update: {}", err);
+                                error!("Could not send invoice state update: {err}");
                                 return Err(Status::new(
                                     Code::Internal,
-                                    format!("could not send initial invoice state: {}", err),
+                                    format!("could not send initial invoice state: {err}"),
                                 ));
                             }
                         }
                         Err(err) => {
                             return Err(Status::new(
                                 Code::Internal,
-                                format!("could not transform invoice state: {}", err),
+                                format!("could not transform invoice state: {err}"),
                             ));
                         }
                     }
@@ -308,7 +305,7 @@ where
             Err(err) => {
                 return Err(Status::new(
                     Code::Internal,
-                    format!("could not fetch invoice state from database: {}", err),
+                    format!("could not fetch invoice state from database: {err}"),
                 ));
             }
         };
@@ -334,7 +331,7 @@ where
                             }))
                             .await
                         {
-                            debug!("Could not send invoice state update: {}", err);
+                            debug!("Could not send invoice state update: {err}");
                             break;
                         };
 
@@ -343,7 +340,7 @@ where
                         }
                     }
                     Err(err) => {
-                        error!("Waiting for invoice state updates failed: {}", err);
+                        error!("Waiting for invoice state updates failed: {err}");
                         break;
                     }
                 }
@@ -386,7 +383,7 @@ where
                             hex::encode(&hash),
                             err
                         );
-                        error!("{}", err);
+                        error!("{err}");
                         let _ = tx.send(Err(Status::new(Code::Internal, err))).await;
                         return;
                     }
@@ -400,7 +397,7 @@ where
                             hex::encode(&hash),
                             err
                         );
-                        error!("{}", err);
+                        error!("{err}");
                         let _ = tx.send(Err(Status::new(Code::Internal, err))).await;
                         return;
                     }
@@ -415,7 +412,7 @@ where
                     }))
                     .await
                 {
-                    error!("Could not send invoice state: {}", err);
+                    error!("Could not send invoice state: {err}");
                     return;
                 };
             }
@@ -438,12 +435,12 @@ where
                             }))
                             .await
                         {
-                            debug!("Could not send all invoices state update: {}", err);
+                            debug!("Could not send all invoices state update: {err}");
                             break;
                         };
                     }
                     Err(err) => {
-                        error!("Waiting for all invoices state updates failed: {}", err);
+                        error!("Waiting for all invoices state updates failed: {err}");
                         break;
                     }
                 }
@@ -479,7 +476,7 @@ where
                             );
                         }
                         Err(err) => {
-                            error!("Onion message response error: {}", err);
+                            error!("Onion message response error: {err}");
                             break;
                         }
                     }
@@ -494,18 +491,18 @@ where
                         let msg: OnionMessage = match msg.try_into() {
                             Ok(msg) => msg,
                             Err(err) => {
-                                error!("Failed to convert onion message: {}", err);
+                                error!("Failed to convert onion message: {err}");
                                 break;
                             }
                         };
 
                         if let Err(err) = tx.send(Ok(msg)).await {
-                            error!("Failed to send onion message: {}", err);
+                            error!("Failed to send onion message: {err}");
                             break;
                         }
                     }
                     Err(err) => {
-                        error!("Waiting for onion messages failed: {}", err);
+                        error!("Waiting for onion messages failed: {err}");
                         break;
                     }
                 }

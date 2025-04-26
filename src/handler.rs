@@ -38,7 +38,7 @@ where
 
     pub async fn htlc_accepted(&mut self, args: HtlcCallbackRequest) -> Resolution {
         self.handle_htlc(args).await.unwrap_or_else(|err| {
-            error!("Could not handle HTLC: {}", err);
+            error!("Could not handle HTLC: {err}");
             // Continue to not crash CLN
             Resolution::Resolution(HtlcCallbackResponse::Continue)
         })
@@ -130,11 +130,8 @@ where
                     &invoice,
                     &args,
                     FailureMessage::IncorrectPaymentDetails,
-                    format!(
-                        "overpayment protection ({} < {})",
-                        amount_max_accepted, amount_paid
-                    )
-                    .as_str(),
+                    format!("overpayment protection ({amount_max_accepted} < {amount_paid})")
+                        .as_str(),
                 );
             }
         }
