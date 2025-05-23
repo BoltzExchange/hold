@@ -1,11 +1,12 @@
-use crate::database::Pool;
 use crate::database::model::{
     HoldInvoice, Htlc, HtlcInsertable, Invoice, InvoiceInsertable, InvoiceState,
 };
 use crate::database::schema::{htlcs, invoices};
+use crate::database::{AnyConnection, Pool};
 use anyhow::{Result, anyhow};
 use chrono::{TimeDelta, Utc};
 use diesel::dsl::delete;
+use diesel::r2d2::{ConnectionManager, PooledConnection};
 use diesel::{
     BelongingToDsl, BoolExpressionMethods, Connection, ExpressionMethods, GroupedBy, insert_into,
     update,
@@ -23,7 +24,8 @@ pub trait InvoiceHelper {
         state: InvoiceState,
         new_state: InvoiceState,
     ) -> Result<usize>;
-    fn set_invoice_preimage(&self, id: i64, preimage: &[u8]) -> Result<usize>;
+    fn set_invoice_settled(&self, payment_hash: &[u8], preimage: &[u8]) -> Result<()>;
+
     fn set_htlc_state_by_id(
         &self,
         htlc_id: i64,
@@ -53,6 +55,30 @@ impl InvoiceHelperDatabase {
     pub fn new(pool: Pool) -> Self {
         InvoiceHelperDatabase { pool }
     }
+
+    fn set_invoice_state(
+        con: &mut PooledConnection<ConnectionManager<AnyConnection>>,
+        id: i64,
+        state: InvoiceState,
+        new_state: InvoiceState,
+    ) -> Result<usize> {
+        state.validate_transition(new_state)?;
+
+        if new_state != InvoiceState::Paid {
+            Ok(update(invoices::dsl::invoices)
+                .filter(invoices::dsl::id.eq(id))
+                .set(invoices::dsl::state.eq(new_state.to_string()))
+                .execute(con)?)
+        } else {
+            Ok(update(invoices::dsl::invoices)
+                .filter(invoices::dsl::id.eq(id))
+                .set((
+                    invoices::dsl::state.eq(new_state.to_string()),
+                    invoices::dsl::settled_at.eq(Some(Utc::now().naive_utc())),
+                ))
+                .execute(con)?)
+        }
+    }
 }
 
 impl InvoiceHelper for InvoiceHelperDatabase {
@@ -74,29 +100,39 @@ impl InvoiceHelper for InvoiceHelperDatabase {
         state: InvoiceState,
         new_state: InvoiceState,
     ) -> Result<usize> {
-        state.validate_transition(new_state)?;
-
-        if new_state != InvoiceState::Paid {
-            Ok(update(invoices::dsl::invoices)
-                .filter(invoices::dsl::id.eq(id))
-                .set(invoices::dsl::state.eq(new_state.to_string()))
-                .execute(&mut self.pool.get()?)?)
-        } else {
-            Ok(update(invoices::dsl::invoices)
-                .filter(invoices::dsl::id.eq(id))
-                .set((
-                    invoices::dsl::state.eq(new_state.to_string()),
-                    invoices::dsl::settled_at.eq(Some(Utc::now().naive_utc())),
-                ))
-                .execute(&mut self.pool.get()?)?)
-        }
+        Self::set_invoice_state(&mut self.pool.get()?, id, state, new_state)
     }
 
-    fn set_invoice_preimage(&self, id: i64, preimage: &[u8]) -> Result<usize> {
-        Ok(update(invoices::dsl::invoices)
-            .filter(invoices::dsl::id.eq(id))
-            .set(invoices::dsl::preimage.eq(preimage))
-            .execute(&mut self.pool.get()?)?)
+    fn set_invoice_settled(&self, payment_hash: &[u8], preimage: &[u8]) -> Result<()> {
+        let mut con = self.pool.get()?;
+        con.transaction(|tx| {
+            let invoice = invoices::dsl::invoices
+                .filter(invoices::dsl::payment_hash.eq(payment_hash))
+                .first::<Invoice>(tx)?;
+
+            Self::set_invoice_state(
+                tx,
+                invoice.id,
+                InvoiceState::try_from(&invoice.state)?,
+                InvoiceState::Paid,
+            )?;
+            update(invoices::dsl::invoices)
+                .filter(invoices::dsl::id.eq(invoice.id))
+                .set(invoices::dsl::preimage.eq(preimage))
+                .execute(tx)?;
+
+            update(htlcs::dsl::htlcs)
+                .filter(
+                    htlcs::dsl::invoice_id
+                        .eq(invoice.id)
+                        // Only settle accepted HTLCs
+                        .and(htlcs::dsl::state.eq(InvoiceState::Accepted.to_string())),
+                )
+                .set(htlcs::dsl::state.eq(InvoiceState::Paid.to_string()))
+                .execute(tx)?;
+
+            Ok(())
+        })
     }
 
     fn set_htlc_state_by_id(
@@ -212,8 +248,60 @@ impl InvoiceHelper for InvoiceHelperDatabase {
         let invoice = invoices[0].clone();
         let htlcs = Htlc::belonging_to(&vec![invoice.clone()])
             .select(Htlc::as_select())
+            .order_by(htlcs::dsl::id)
             .load(&mut con)?;
 
         Ok(Some(HoldInvoice::new(invoice, htlcs)))
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::database::connect;
+
+    #[test]
+    fn test_set_invoice_settled() {
+        let pool = connect("sqlite://:memory:").unwrap();
+        let helper = InvoiceHelperDatabase::new(pool);
+
+        let payment_hash = vec![1, 2, 3];
+        let invoice = InvoiceInsertable {
+            payment_hash: payment_hash.clone(),
+            state: InvoiceState::Accepted.to_string(),
+            min_cltv: None,
+            invoice: "ln".to_string(),
+        };
+
+        helper.insert(&invoice).unwrap();
+
+        let htlc_accepted = HtlcInsertable {
+            invoice_id: 1,
+            state: InvoiceState::Accepted.to_string(),
+            scid: "1".to_string(),
+            channel_id: 1,
+            msat: 1000,
+        };
+        helper.insert_htlc(&htlc_accepted).unwrap();
+
+        let htlc_cancelled = HtlcInsertable {
+            invoice_id: 1,
+            state: InvoiceState::Cancelled.to_string(),
+            scid: "2".to_string(),
+            channel_id: 2,
+            msat: 1000,
+        };
+        helper.insert_htlc(&htlc_cancelled).unwrap();
+
+        let preimage = &[1, 2, 3];
+        helper.set_invoice_settled(&payment_hash, preimage).unwrap();
+
+        let invoice = helper.get_by_payment_hash(&payment_hash).unwrap().unwrap();
+        assert_eq!(invoice.invoice.state, InvoiceState::Paid.to_string());
+        assert_eq!(invoice.invoice.preimage, Some(preimage.to_vec()));
+
+        assert_eq!(invoice.htlcs.len(), 2);
+        assert_eq!(invoice.htlcs[0].state, InvoiceState::Paid.to_string());
+        assert_eq!(invoice.htlcs[1].state, InvoiceState::Cancelled.to_string());
     }
 }

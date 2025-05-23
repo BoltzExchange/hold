@@ -79,7 +79,7 @@ class TestHtlcs:
             c
             for c in lnd("listchannels")["channels"]
             if c["remote_pubkey"] == hold_node_id
-        )["chan_id"]
+        )["scid"]
 
         invoice = lnd("addinvoice", "1000", node=2)["payment_request"]
 
