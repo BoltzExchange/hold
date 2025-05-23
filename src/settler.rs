@@ -53,7 +53,7 @@ pub struct PendingHtlc {
 #[derive(Debug, Clone)]
 pub struct StateUpdate {
     pub payment_hash: Vec<u8>,
-    pub bolt11: String,
+    pub invoice: String,
     pub state: InvoiceState,
 }
 
@@ -91,8 +91,8 @@ where
         );
 
         let _ = self.state_tx.send(StateUpdate {
+            invoice,
             payment_hash,
-            bolt11: invoice,
             state: InvoiceState::Unpaid,
         });
     }
@@ -110,7 +110,7 @@ where
         )?;
         let _ = self.state_tx.send(StateUpdate {
             state: InvoiceState::Accepted,
-            bolt11: invoice.invoice.clone(),
+            invoice: invoice.invoice.clone(),
             payment_hash: invoice.payment_hash.clone(),
         });
 
@@ -159,18 +159,19 @@ where
         };
         let htlc_count = htlcs.len();
 
-        let preimage_hex = hex::encode(payment_preimage);
-        for htlc in htlcs {
-            let _ = htlc.sender.send(HtlcCallbackResponse::Resolve {
-                payment_key: preimage_hex.clone(),
-            });
+        {
+            let preimage_hex = hex::encode(payment_preimage);
+            for htlc in htlcs {
+                let _ = htlc.sender.send(HtlcCallbackResponse::Resolve {
+                    payment_key: preimage_hex.clone(),
+                });
+            }
         }
 
-        let (invoice_id, bolt11) = self.update_database_states(payment_hash, InvoiceState::Paid)?;
         self.invoice_helper
-            .set_invoice_preimage(invoice_id, payment_preimage)?;
+            .set_invoice_settled(payment_hash, payment_preimage)?;
         let _ = self.state_tx.send(StateUpdate {
-            bolt11,
+            invoice: self.get_invoice(payment_hash)?.invoice.invoice,
             state: InvoiceState::Paid,
             payment_hash: payment_hash.clone(),
         });
@@ -198,9 +199,9 @@ where
             });
         }
 
-        let (_, bolt11) = self.update_database_states(payment_hash, InvoiceState::Cancelled)?;
+        let (_, invoice) = self.update_database_states(payment_hash, InvoiceState::Cancelled)?;
         let _ = self.state_tx.send(StateUpdate {
-            bolt11,
+            invoice,
             state: InvoiceState::Cancelled,
             payment_hash: payment_hash.clone(),
         });

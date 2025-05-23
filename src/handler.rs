@@ -242,7 +242,7 @@ mod test {
                 state: InvoiceState,
                 new_state: InvoiceState,
             ) -> Result<usize>;
-            fn set_invoice_preimage(&self, id: i64, preimage: &[u8]) -> Result<usize>;
+            fn set_invoice_settled(&self, payment_hash: &[u8], preimage: &[u8]) -> Result<()>;
             fn set_htlc_state_by_id(
                 &self,
                 htlc_id: i64,
@@ -636,8 +636,8 @@ mod test {
             .expect_set_invoice_state()
             .returning(|_, _, _| Ok(0));
         helper_settler
-            .expect_set_invoice_preimage()
-            .returning(|_, _| Ok(0));
+            .expect_set_invoice_settled()
+            .returning(|_, _| Ok(()));
 
         let mut handler = Handler::new(helper, Settler::new(helper_settler, 0));
 

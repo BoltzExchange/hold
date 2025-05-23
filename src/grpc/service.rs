@@ -429,7 +429,7 @@ where
 
                         if let Err(err) = tx
                             .send(Ok(TrackAllResponse {
-                                bolt11: update.bolt11,
+                                bolt11: update.invoice,
                                 payment_hash: update.payment_hash,
                                 state: transform_invoice_state(update.state),
                             }))

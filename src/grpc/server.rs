@@ -138,7 +138,7 @@ mod test {
                 state: InvoiceState,
                 new_state: InvoiceState,
             ) -> Result<usize>;
-            fn set_invoice_preimage(&self, id: i64, preimage: &[u8]) -> Result<usize>;
+            fn set_invoice_settled(&self, payment_hash: &[u8], preimage: &[u8]) -> Result<()>;
             fn set_htlc_state_by_id(
                 &self,
                 htlc_id: i64,
