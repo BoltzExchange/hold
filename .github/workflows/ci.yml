@@ -8,7 +8,7 @@ jobs:
       matrix:
         platform: [ubuntu-latest]
         python-version: ["3.10"]
-        rust-version: [stable, nightly]
+        rust-version: [stable]
 
     runs-on: ${{ matrix.platform }}
 
