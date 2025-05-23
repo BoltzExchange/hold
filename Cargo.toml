@@ -1,6 +1,6 @@
 [package]
 name = "hold"
-version = "0.3.0"
+version = "0.3.1"
 edition = "2024"
 license = "MIT"
 build = "build.rs"
@@ -27,7 +27,12 @@ log = { version = "0.4.27", features = [] }
 prost = "0.13.4"
 rcgen = { version = "0.13.2", features = ["x509-parser"] }
 tokio = { version = "1.45.0", features = ["macros", "rt-multi-thread", "sync"] }
-tonic = { version = "0.13.1", features = ["prost", "gzip", "zstd", "tls-aws-lc"] }
+tonic = { version = "0.13.1", features = [
+    "prost",
+    "gzip",
+    "zstd",
+    "tls-aws-lc",
+] }
 serde = { version = "1.0.217", features = ["derive"] }
 serde_json = { version = "1.0.137", features = ["preserve_order"] }
 lightning-invoice = { version = "0.33.2", features = ["std"] }
