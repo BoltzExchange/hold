@@ -3,6 +3,21 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 ---
+## [0.3.1](https://github.com/BoltzExchange/hold/compare/v0.3.0..v0.3.1) - 2025-05-23
+
+### Bug Fixes
+
+- all HTLCs marked as paid when invoice is settled - ([de980ae](https://github.com/BoltzExchange/hold/commit/de980aed6e74615eb6f39b22db2069e92d958ed3))
+
+### Miscellaneous Chores
+
+- bump changelog for v0.3.0 - ([d1b1964](https://github.com/BoltzExchange/hold/commit/d1b196412db2f645f14050f3cb27eadce0f86069))
+- bump dependencies - ([78f5506](https://github.com/BoltzExchange/hold/commit/78f5506e85c4eee5e246ce13f5d0635474ffaded))
+- inline format! macro params - ([80445db](https://github.com/BoltzExchange/hold/commit/80445dbec573590934203db8f81e2f3b3e40969d))
+- bump dependencies - ([928561c](https://github.com/BoltzExchange/hold/commit/928561cefd1b4e18a05dfbf9964174ce7d34a9f1))
+- bump version to v0.3.1 - ([953f279](https://github.com/BoltzExchange/hold/commit/953f2790df72ae99650bea8e360607e918b1d1a9))
+
+---
 ## [0.3.0](https://github.com/BoltzExchange/hold/compare/v0.2.2..v0.3.0) - 2025-04-01
 
 ### Bug Fixes
