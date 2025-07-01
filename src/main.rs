@@ -1,5 +1,8 @@
-use crate::config::{OPTION_DATABASE, OPTION_GRPC_HOST, OPTION_GRPC_PORT, OPTION_MPP_TIMEOUT};
+use crate::config::{
+    OPTION_DATABASE, OPTION_EXPIRY_DEADLINE, OPTION_GRPC_HOST, OPTION_GRPC_PORT, OPTION_MPP_TIMEOUT,
+};
 use crate::encoder::Encoder;
+use crate::expiry_cancel::ExpiryCancel;
 use crate::handler::Handler;
 use crate::settler::Settler;
 use anyhow::Result;
@@ -16,11 +19,13 @@ mod commands;
 mod config;
 mod database;
 mod encoder;
+mod expiry_cancel;
 mod grpc;
 mod handler;
 mod hooks;
 mod invoice;
 mod messenger;
+mod notifications;
 mod settler;
 mod utils;
 
@@ -32,6 +37,7 @@ struct State<T, E> {
     encoder: E,
     invoice_helper: T,
     messenger: Messenger,
+    expiry_cancel: ExpiryCancel<T>,
 }
 
 #[tokio::main]
@@ -47,8 +53,10 @@ async fn main() -> Result<()> {
         .dynamic()
         .option(OPTION_DATABASE)
         .option(OPTION_MPP_TIMEOUT)
+        .option(OPTION_EXPIRY_DEADLINE)
         .option(OPTION_GRPC_HOST)
         .option(OPTION_GRPC_PORT)
+        .subscribe("block_added", notifications::block_added)
         .hook("htlc_accepted", hooks::htlc_accepted)
         .hook("onion_message_recv", hooks::onion_message_recv)
         .hook(
@@ -114,6 +122,23 @@ async fn main() -> Result<()> {
         Err(err) => {
             plugin
                 .disable(format!("invalid MPP timeout: {err}").as_str())
+                .await?;
+            return Ok(());
+        }
+    };
+
+    let expiry_deadline = match plugin.option(&OPTION_EXPIRY_DEADLINE) {
+        Ok(deadline) => {
+            if deadline < 0 {
+                plugin.disable("Expiry deadline has to be positive").await?;
+                return Ok(());
+            }
+
+            deadline as u64
+        }
+        Err(err) => {
+            plugin
+                .disable(format!("invalid expiry deadline: {err}").as_str())
                 .await?;
             return Ok(());
         }
@@ -210,6 +235,7 @@ async fn main() -> Result<()> {
             messenger: messenger.clone(),
             invoice_helper: invoice_helper.clone(),
             handler: Handler::new(invoice_helper.clone(), settler.clone()),
+            expiry_cancel: ExpiryCancel::new(expiry_deadline, settler.clone()),
         })
         .await?;
 

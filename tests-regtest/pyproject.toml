@@ -6,8 +6,8 @@ description = "Tests for CLN hold invoice plugin"
 requires-python = ">=3.10"
 dependencies = [
     "bolt11>=2.1.1",
-    "grpcio>=1.68.1",
-    "grpcio-tools>=1.68.1",
+    "grpcio>=1.73.1",
+    "grpcio-tools>=1.73.1",
     "pytest>=8.4.1",
     "ruff>=0.12.1",
 ]

@@ -1,4 +1,5 @@
 import time
+from collections.abc import Generator
 
 import grpc
 import pytest
@@ -15,7 +16,7 @@ from hold.utils import LndPay, hold_client, new_preimage_bytes
 
 class TestState:
     @pytest.fixture(scope="class", autouse=True)
-    def cl(self) -> HoldStub:
+    def cl(self) -> Generator[HoldStub, None, None]:
         (channel, client) = hold_client()
 
         yield client

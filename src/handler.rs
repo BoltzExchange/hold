@@ -71,6 +71,7 @@ where
                         &invoice.invoice.payment_hash,
                         args.htlc.short_channel_id.clone(),
                         args.htlc.id,
+                        args.htlc.cltv_expiry,
                     )
                     .await,
             ));
@@ -160,6 +161,7 @@ where
                     &invoice.invoice.payment_hash,
                     args.htlc.short_channel_id,
                     args.htlc.id,
+                    args.htlc.cltv_expiry,
                 )
                 .await,
         ))
@@ -209,60 +211,17 @@ where
 
 #[cfg(test)]
 mod test {
-    use crate::database::helpers::invoice_helper::InvoiceHelper;
-    use crate::database::model::{
-        HoldInvoice, HtlcInsertable, Invoice, InvoiceInsertable, InvoiceState,
-    };
+    use crate::database::helpers::invoice_helper::test::MockInvoiceHelper;
+    use crate::database::model::{HoldInvoice, Invoice, InvoiceState};
     use crate::handler::{Handler, Resolution};
     use crate::hooks::htlc_accepted::{
         FailureMessage, Htlc, HtlcCallbackRequest, HtlcCallbackResponse, Onion,
     };
     use crate::settler::Settler;
-    use anyhow::Result;
     use lightning_invoice::Bolt11Invoice;
-    use mockall::mock;
     use std::str::FromStr;
 
     const INVOICE: &str = "lnbc10n1pnvfs4vsp57npt9tx2glnkx29ng98cmc0lt0as8se4x4776rtwqp3gr3hj807qpp5ysnte2hh3nv4z0jd4pfe5wla956zxxg3rmxs5ux4v0xfwplvlm8sdqdw3jhxar5v4ehgxqyjw5qcqpjrzjq2rnwvp7zt9cgeparuqcrqft2kd9dm6a0z6vg0gucrqurutaezrjyrze2uqq2wcqqyqqqqdyqqqqqpqqvs9qxpqysgqjkdwjjuzfy5ek4k9xgsv0ysrc3lg349caqqh3yearxmv4zgyqhqyuntk4gyjpvpezcc66v5lyzxm240wdfgp6cqkwt7fv2nngjjnlrspmaakpk";
-
-    mock! {
-        InvoiceHelper {}
-
-        impl Clone for InvoiceHelper {
-            fn clone(&self) -> Self;
-        }
-
-        impl InvoiceHelper for InvoiceHelper {
-            fn insert(&self, invoice: &InvoiceInsertable) -> Result<usize>;
-            fn insert_htlc(&self, htlc: &HtlcInsertable) -> Result<usize>;
-
-            fn set_invoice_state(
-                &self,
-                id: i64,
-                state: InvoiceState,
-                new_state: InvoiceState,
-            ) -> Result<usize>;
-            fn set_invoice_settled(&self, payment_hash: &[u8], preimage: &[u8]) -> Result<()>;
-            fn set_htlc_state_by_id(
-                &self,
-                htlc_id: i64,
-                state: InvoiceState,
-                new_state: InvoiceState,
-            ) -> Result<usize>;
-            fn set_htlc_states_by_invoice(
-                &self,
-                invoice_id: i64,
-                state: InvoiceState,
-                new_state: InvoiceState,
-            ) -> Result<usize>;
-
-            fn clean_cancelled(&self, age: Option<u64>) -> Result<usize>;
-
-            fn get_all(&self) -> Result<Vec<HoldInvoice>>;
-            fn get_paginated(&self, index_start: i64, limit: u64) -> Result<Vec<HoldInvoice>>;
-            fn get_by_payment_hash(&self, payment_hash: &[u8]) -> Result<Option<HoldInvoice>>;
-        }
-    }
 
     #[tokio::test]
     async fn no_invoice() {
