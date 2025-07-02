@@ -44,6 +44,15 @@ def hold_client() -> tuple[grpc.Channel, HoldStub]:
     return channel, client
 
 
+def bitcoin_cli(*args: str | float) -> dict[str, Any]:
+    return json.load(
+        os.popen(
+            f"docker exec boltz-bitcoind bitcoin-cli --regtest --rpcwallet=regtest "
+            f"{' '.join(str(arg) for arg in args)}"
+        )
+    )
+
+
 def lightning(*args: str | float, node: int = 2) -> dict[str, Any]:
     return json.load(
         os.popen(
@@ -64,7 +73,7 @@ def lnd_raw(*args: str, node: int = 1) -> str:
 
 
 class LndPay(Thread):
-    res: dict[str, Any] = None
+    res: dict[str, Any]
 
     def __init__(
         self,

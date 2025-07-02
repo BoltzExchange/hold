@@ -46,6 +46,7 @@ impl Error for SettleError {}
 pub struct PendingHtlc {
     scid: String,
     channel_id: u64,
+    expiry: u64,
     sender: ResolverSender,
     time: SystemTime,
 }
@@ -122,6 +123,7 @@ where
         payment_hash: &Vec<u8>,
         scid: String,
         channel_id: u64,
+        expiry: u64,
     ) -> Resolver {
         let (tx, rx) = oneshot::channel::<HtlcCallbackResponse>();
         let mut htlcs = self.pending_htlcs.lock().await;
@@ -129,6 +131,7 @@ where
         let pending = PendingHtlc {
             scid,
             channel_id,
+            expiry,
             sender: tx,
             time: SystemTime::now(),
         };
@@ -212,6 +215,17 @@ where
         );
 
         Ok(())
+    }
+
+    /// Returns a map of payment hashes and the shortest expiry of their HTLCs
+    pub async fn get_expiries(&self) -> HashMap<Vec<u8>, u64> {
+        let mut res = HashMap::new();
+        for (payment_hash, pending) in self.pending_htlcs.lock().await.iter() {
+            let min_expiry = pending.iter().map(|h| h.expiry).min().unwrap_or(u64::MAX);
+            res.insert(payment_hash.clone(), min_expiry);
+        }
+
+        res
     }
 
     pub async fn mpp_timeout_loop(&mut self) {
@@ -351,5 +365,30 @@ where
             },
             Err(err) => Err(SettleError::DatabaseFetchError(err).into()),
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::database::helpers::invoice_helper::test::MockInvoiceHelper;
+
+    #[tokio::test]
+    async fn test_get_expiries() {
+        let mut settler = Settler::new(MockInvoiceHelper::new(), 0);
+
+        let hash = vec![1, 2, 3];
+        settler.add_htlc(&hash, "".to_string(), 0, 10).await;
+        settler.add_htlc(&hash, "".to_string(), 0, 11).await;
+        settler.add_htlc(&hash, "".to_string(), 0, 12).await;
+
+        let second_hash = vec![4, 5, 6];
+        settler.add_htlc(&second_hash, "".to_string(), 0, 3).await;
+        settler.add_htlc(&second_hash, "".to_string(), 0, 2).await;
+
+        let expiries = settler.get_expiries().await;
+        assert_eq!(expiries.len(), 2);
+        assert_eq!(expiries[&hash], 10);
+        assert_eq!(expiries[&second_hash], 2);
     }
 }

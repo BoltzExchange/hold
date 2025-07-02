@@ -10,6 +10,7 @@ Requirements:
 
 - Rust (latest stable version recommended)
 - `gcc`
+- `protoc`
 - `libpq-dev`
 - `libsqlite3-dev`
 

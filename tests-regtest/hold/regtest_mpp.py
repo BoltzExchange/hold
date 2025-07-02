@@ -1,5 +1,6 @@
 import json
 import time
+from collections.abc import Generator
 
 import bolt11
 import pytest
@@ -19,7 +20,7 @@ from hold.utils import LndPay, hold_client, lightning, new_preimage_bytes
 
 class TestMpp:
     @pytest.fixture(scope="class", autouse=True)
-    def cl(self) -> HoldStub:
+    def cl(self) -> Generator[HoldStub, None, None]:
         (channel, client) = hold_client()
 
         yield client
@@ -59,7 +60,7 @@ class TestMpp:
         )
 
         dec = bolt11.decode(invoice.bolt11)
-        dec.amount_msat = MilliSatoshi(dec.amount_msat - 1_000)
+        dec.amount_msat = MilliSatoshi((dec.amount_msat or 0) - 1_000)
 
         pay = LndPay(
             1, lightning("signinvoice", bolt11.encode(dec))["bolt11"], timeout=1
