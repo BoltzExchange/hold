@@ -41,6 +41,11 @@ This can be:
 
 #### Advanced
 
+`hold-expiry-deadline` specifies the number of blocks before the shortest HTLC
+of a hold invoice expires at which point the invoice will be automatically cancelled.
+Default is 3.
+Set to 0 to disable.
+
 `hold-mpp-timeout` the MPP timeout of payment shards in seconds.
 Default is 60.
 _Should only be changed for debugging and testing purposes_
