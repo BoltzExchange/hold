@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 ---
+## [0.3.2](https://github.com/BoltzExchange/hold/compare/v0.3.1..v0.3.2) - 2025-07-02
+
+### Features
+
+- cancel invoices when close to HTLC expiry - ([51fd625](https://github.com/BoltzExchange/hold/commit/51fd62582863230c06bf400f29098ddac8818bee))
+
+### Miscellaneous Chores
+
+- bump changelog for v0.3.1 - ([a4790e9](https://github.com/BoltzExchange/hold/commit/a4790e9f981fe465590ebc7be2c56493e6dcb3d0))
+- update regtest (#20) - ([b30003f](https://github.com/BoltzExchange/hold/commit/b30003ffae4db7441da9a5cfb278275f0480f390))
+
+---
 ## [0.3.1](https://github.com/BoltzExchange/hold/compare/v0.3.0..v0.3.1) - 2025-05-23
 
 ### Bug Fixes
