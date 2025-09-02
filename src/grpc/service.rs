@@ -319,10 +319,10 @@ where
                         }
 
                         // Do not send the initial state twice
-                        if let Some(initial_state) = initial_state {
-                            if initial_state == update.state {
-                                continue;
-                            }
+                        if let Some(initial_state) = initial_state
+                            && initial_state == update.state
+                        {
+                            continue;
                         }
 
                         if let Err(err) = tx
@@ -421,10 +421,10 @@ where
                 match state_rx.recv().await {
                     Ok(update) => {
                         // Do not send the initial state twice
-                        if let Some(initial_state) = initial_states.get(&update.payment_hash) {
-                            if initial_state == &update.state {
-                                continue;
-                            }
+                        if let Some(initial_state) = initial_states.get(&update.payment_hash)
+                            && initial_state == &update.state
+                        {
+                            continue;
                         }
 
                         if let Err(err) = tx

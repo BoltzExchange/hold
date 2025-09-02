@@ -70,10 +70,10 @@ impl Invoice {
                 }
 
                 invoice.payment_paths().iter().any(|path| {
-                    if let IntroductionNode::NodeId(intro_node) = path.introduction_node() {
-                        if intro_node.serialize() == node_id {
-                            return true;
-                        }
+                    if let IntroductionNode::NodeId(intro_node) = path.introduction_node()
+                        && intro_node.serialize() == node_id
+                    {
+                        return true;
                     }
 
                     false
