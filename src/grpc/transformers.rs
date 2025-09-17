@@ -12,6 +12,7 @@ impl From<Htlc> for hold::Htlc {
             scid: value.scid,
             channel_id: value.channel_id as u64,
             msat: value.msat as u64,
+            cltv_expiry: value.cltv_expiry.map(|cltv| cltv as u64),
             created_at: value.created_at.and_utc().timestamp() as u64,
         }
     }

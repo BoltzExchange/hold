@@ -321,6 +321,7 @@ pub mod test {
             scid: "1".to_string(),
             channel_id: 1,
             msat: 1000,
+            cltv_expiry: 226,
         };
         helper.insert_htlc(&htlc_accepted).unwrap();
 
@@ -330,6 +331,7 @@ pub mod test {
             scid: "2".to_string(),
             channel_id: 2,
             msat: 1000,
+            cltv_expiry: 226,
         };
         helper.insert_htlc(&htlc_cancelled).unwrap();
 
