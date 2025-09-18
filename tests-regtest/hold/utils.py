@@ -47,8 +47,8 @@ def hold_client() -> tuple[grpc.Channel, HoldStub]:
 def bitcoin_cli(*args: str | float) -> dict[str, Any]:
     return json.load(
         os.popen(
-            f"docker exec boltz-bitcoind bitcoin-cli --regtest --rpcwallet=regtest "
-            f"{' '.join(str(arg) for arg in args)}"
+            f"docker exec boltz-bitcoind bitcoin-cli --regtest --datadir=/app/bitcoin "
+            f"--rpcwallet=regtest {' '.join(str(arg) for arg in args)}"
         )
     )
 
@@ -57,7 +57,7 @@ def lightning(*args: str | float, node: int = 2) -> dict[str, Any]:
     return json.load(
         os.popen(
             f"docker exec boltz-cln-{node} lightning-cli --regtest "
-            f"{' '.join(str(arg) for arg in args)}",
+            f"--lightning-dir /app/lightning {' '.join(str(arg) for arg in args)}",
         ),
     )
 
@@ -68,7 +68,8 @@ def lnd(*args: str, node: int = 1) -> dict[str, Any]:
 
 def lnd_raw(*args: str, node: int = 1) -> str:
     return os.popen(
-        f"docker exec boltz-lnd-{node} lncli -n regtest {' '.join(args)}"
+        f"docker exec boltz-lnd-{node} lncli -n regtest --lnddir /app/lnd "
+        f"{' '.join(args)}"
     ).read()
 
 

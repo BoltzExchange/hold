@@ -140,7 +140,7 @@ class TestHtlcs:
         assert pay.res["status"] == "SUCCEEDED"
 
     def test_unacceptable_overpayment(self, cl: HoldStub) -> None:
-        (preimage, payment_hash) = new_preimage_bytes()
+        (_, payment_hash) = new_preimage_bytes()
         amount = 21_000
         invoice: InvoiceResponse = cl.Invoice(
             InvoiceRequest(
