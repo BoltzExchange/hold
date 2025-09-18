@@ -24,27 +24,24 @@ python-protos:
 		../protos/hold.proto
 
 regtest-start:
-	git submodule init
-	git submodule update
-	chmod -R 777 regtest 2> /dev/null || true
 	cd regtest && COMPOSE_PROFILES=ci ./start.sh
-	mkdir regtest/data/cln2/plugins
-	cp target/debug/hold regtest/data/cln2/plugins/
-	docker exec boltz-cln-2 lightning-cli --regtest plugin stop /root/hold
-	rm -rf regtest/data/cln2/regtest/hold/
-	docker exec boltz-cln-2 lightning-cli --regtest plugin start /root/.lightning/plugins/hold
 
-	sleep 1
-	docker exec boltz-cln-2 chmod 777 -R /root/.lightning/regtest/hold
+regtest-setup:
+	mkdir -p regtest/data/cln2/plugins
+	cp target/debug/hold regtest/data/cln2/plugins/
+	chmod 777 regtest/data/cln2/plugins/hold
+	docker exec boltz-cln-2 lightning-cli --regtest --lightning-dir /app/lightning plugin stop /usr/local/bin/hold
+	rm -rf regtest/data/cln2/regtest/hold/
+	docker exec boltz-cln-2 lightning-cli --regtest --lightning-dir /app/lightning plugin start /app/lightning/plugins/hold
 
 	make python-protos
 
 regtest-stop:
-	cd regtest && ./stop.sh
+	cd regtest && COMPOSE_PROFILES=ci ./stop.sh
 
 db-start:
 	docker run --name hold-db --rm -e POSTGRES_DB=hold -e POSTGRES_USER=hold -e POSTGRES_PASSWORD=hold \
-		-d -p 5433:5432 postgres:14-alpine
+		-d -p 5433:5432 postgres:17-alpine
 
 db-stop:
 	docker stop hold-db
