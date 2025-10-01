@@ -1,0 +1,1 @@
+ALTER TABLE htlcs ADD COLUMN cltv_expiry INTEGER;

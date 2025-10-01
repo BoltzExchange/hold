@@ -47,6 +47,7 @@ pub struct Htlc {
     pub scid: String,
     pub channel_id: i64,
     pub msat: i64,
+    pub cltv_expiry: Option<i64>,
     pub created_at: chrono::NaiveDateTime,
 }
 
@@ -57,6 +58,7 @@ pub struct HtlcInsertable {
     pub state: String,
     pub scid: String,
     pub channel_id: i64,
+    pub cltv_expiry: i64,
     pub msat: i64,
 }
 
@@ -375,6 +377,7 @@ mod test {
             scid: "".to_string(),
             channel_id: 0,
             msat: 21_000,
+            cltv_expiry: Some(226),
             created_at: Default::default(),
         });
         assert_eq!(invoice.amount_paid_msat(), 0);
@@ -386,6 +389,7 @@ mod test {
             scid: "".to_string(),
             channel_id: 0,
             msat: 10_000,
+            cltv_expiry: Some(226),
             created_at: Default::default(),
         });
         assert_eq!(invoice.amount_paid_msat(), 10_000);
@@ -397,6 +401,7 @@ mod test {
             scid: "".to_string(),
             channel_id: 0,
             msat: 10_000,
+            cltv_expiry: Some(226),
             created_at: Default::default(),
         });
         assert_eq!(invoice.amount_paid_msat(), 20_000);
@@ -423,6 +428,7 @@ mod test {
                     scid: "asdf".to_string(),
                     channel_id: 123,
                     msat: 0,
+                    cltv_expiry: Some(226),
                     created_at: Default::default(),
                 },
                 Htlc {
@@ -432,6 +438,7 @@ mod test {
                     scid: "some channel".to_string(),
                     channel_id: 21,
                     msat: 0,
+                    cltv_expiry: Some(226),
                     created_at: Default::default(),
                 },
             ],
