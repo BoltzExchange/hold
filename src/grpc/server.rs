@@ -6,12 +6,12 @@ use crate::grpc::tls::load_certificates;
 use crate::messenger::Messenger;
 use crate::settler::Settler;
 use anyhow::Result;
-use log::info;
 use std::net::{IpAddr, SocketAddr};
 use std::path::PathBuf;
 use std::str::FromStr;
 use tokio_util::sync::CancellationToken;
 use tonic::transport::ServerTlsConfig;
+use tracing::info;
 
 pub struct State<T, E> {
     pub our_id: [u8; 33],

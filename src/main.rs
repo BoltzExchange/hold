@@ -9,11 +9,11 @@ use anyhow::Result;
 use cln_plugin::{Builder, RpcMethodBuilder};
 use cln_rpc::ClnRpc;
 use cln_rpc::model::requests::GetinfoRequest;
-use log::{debug, error, info, warn};
 use messenger::Messenger;
 use std::fs;
 use std::path::Path;
 use tokio_util::sync::CancellationToken;
+use tracing::{debug, error, info, warn};
 
 mod commands;
 mod config;
@@ -27,6 +27,8 @@ mod invoice;
 mod messenger;
 mod notifications;
 mod settler;
+#[cfg(feature = "otel")]
+mod tracing_setup;
 mod utils;
 
 #[derive(Clone)]
@@ -49,13 +51,23 @@ async fn main() -> Result<()> {
         );
     }
 
-    let plugin = match Builder::new(tokio::io::stdin(), tokio::io::stdout())
+    let plugin = Builder::new(tokio::io::stdin(), tokio::io::stdout())
         .dynamic()
         .option(OPTION_DATABASE)
         .option(OPTION_MPP_TIMEOUT)
         .option(OPTION_EXPIRY_DEADLINE)
         .option(OPTION_GRPC_HOST)
-        .option(OPTION_GRPC_PORT)
+        .option(OPTION_GRPC_PORT);
+
+    #[cfg(feature = "otel")]
+    let plugin = plugin
+        // When we want to set the global tracer, we have to disable the logging
+        // that the CLN plugin provides by default to avoid trying to set two
+        // global tracers
+        .with_logging(false)
+        .option(crate::config::OPTION_OTEL_ENDPOINT);
+
+    let plugin = match plugin
         .subscribe("block_added", notifications::block_added)
         .hook("htlc_accepted", hooks::htlc_accepted)
         .hook("onion_message_recv", hooks::onion_message_recv)
@@ -164,7 +176,21 @@ async fn main() -> Result<()> {
         }
     };
 
+    #[cfg(feature = "otel")]
+    let otel_endpoint = match plugin.option(&crate::config::OPTION_OTEL_ENDPOINT) {
+        Ok(endpoint) => endpoint,
+        Err(err) => {
+            plugin
+                .disable(format!("invalid OpenTelemetry endpoint: {err}").as_str())
+                .await?;
+            return Ok(());
+        }
+    };
+
     let config = plugin.configuration();
+
+    #[cfg(feature = "otel")]
+    tracing_setup::setup(config.network.to_string(), otel_endpoint);
 
     let plugin_dir = Path::new(config.lightning_dir.as_str()).join("hold");
     if !plugin_dir.exists() {

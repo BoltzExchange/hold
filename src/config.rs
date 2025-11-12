@@ -28,5 +28,9 @@ pub const OPTION_GRPC_PORT: options::DefaultIntegerConfigOption =
     options::ConfigOption::new_i64_with_default(
         "hold-grpc-port",
         9292,
-        "hold gRPC post; set to -1 to disable",
+        "hold gRPC port; set to -1 to disable",
     );
+
+#[cfg(feature = "otel")]
+pub const OPTION_OTEL_ENDPOINT: options::StringConfigOption =
+    options::ConfigOption::new_str_no_default("hold-otel-endpoint", "OpenTelemetry gRPC endpoint");

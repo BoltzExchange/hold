@@ -15,7 +15,6 @@ use crate::invoice::Invoice;
 use crate::messenger::Messenger;
 use crate::settler::Settler;
 use bitcoin::hashes::{Hash, sha256};
-use log::{debug, error, warn};
 use std::collections::HashMap;
 use std::pin::Pin;
 use std::str::FromStr;
@@ -23,9 +22,43 @@ use tokio::sync::mpsc;
 use tonic::codegen::tokio_stream::wrappers::ReceiverStream;
 use tonic::codegen::tokio_stream::{Stream, StreamExt};
 use tonic::{Code, Request, Response, Status, Streaming, async_trait};
+use tracing::instrument;
+use tracing::{debug, error, warn};
 
 pub mod hold {
     tonic::include_proto!("hold");
+}
+
+#[cfg(feature = "otel")]
+struct MetadataMap<'a>(&'a tonic::metadata::MetadataMap);
+
+#[cfg(feature = "otel")]
+impl opentelemetry::propagation::Extractor for MetadataMap<'_> {
+    fn get(&self, key: &str) -> Option<&str> {
+        self.0.get(key).and_then(|metadata| metadata.to_str().ok())
+    }
+
+    fn keys(&self) -> Vec<&str> {
+        self.0
+            .keys()
+            .map(|key| match key {
+                tonic::metadata::KeyRef::Ascii(v) => v.as_str(),
+                tonic::metadata::KeyRef::Binary(v) => v.as_str(),
+            })
+            .collect::<Vec<_>>()
+    }
+}
+
+fn extract_parent_context<T>(request: &Request<T>) {
+    #[cfg(feature = "otel")]
+    {
+        use tracing_opentelemetry::OpenTelemetrySpanExt;
+
+        let parent_cx = opentelemetry::global::get_text_map_propagator(|prop| {
+            prop.extract(&MetadataMap(request.metadata()))
+        });
+        let _ = tracing::Span::current().set_parent(parent_cx);
+    }
 }
 
 pub struct HoldService<T, E> {
@@ -64,19 +97,25 @@ where
     T: InvoiceHelper + Send + Sync + Clone + 'static,
     E: InvoiceEncoder + Send + Sync + Clone + 'static,
 {
+    #[instrument(name = "grpc::get_info", skip_all)]
     async fn get_info(
         &self,
-        _: Request<GetInfoRequest>,
+        request: Request<GetInfoRequest>,
     ) -> Result<Response<GetInfoResponse>, Status> {
+        extract_parent_context(&request);
+
         Ok(Response::new(GetInfoResponse {
             version: crate::utils::built_info::PKG_VERSION.to_string(),
         }))
     }
 
+    #[instrument(name = "grpc::invoice", skip_all)]
     async fn invoice(
         &self,
         request: Request<InvoiceRequest>,
     ) -> Result<Response<InvoiceResponse>, Status> {
+        extract_parent_context(&request);
+
         let params = request.into_inner();
 
         let route_hints = match transform_route_hints(params.routing_hints) {
@@ -136,10 +175,13 @@ where
         Ok(Response::new(InvoiceResponse { bolt11: invoice }))
     }
 
+    #[instrument(name = "grpc::inject", skip_all)]
     async fn inject(
         &self,
         request: Request<InjectRequest>,
     ) -> Result<Response<InjectResponse>, Status> {
+        extract_parent_context(&request);
+
         let params = request.into_inner();
 
         let invoice = Invoice::from_str(&params.invoice)
@@ -171,7 +213,10 @@ where
         Ok(Response::new(InjectResponse {}))
     }
 
+    #[instrument(name = "grpc::list", skip_all)]
     async fn list(&self, request: Request<ListRequest>) -> Result<Response<ListResponse>, Status> {
+        extract_parent_context(&request);
+
         let params = request.into_inner();
         let invoices = match params.constraint {
             Some(constraint) => match constraint {
@@ -202,10 +247,13 @@ where
         }
     }
 
+    #[instrument(name = "grpc::settle", skip_all)]
     async fn settle(
         &self,
         request: Request<SettleRequest>,
     ) -> Result<Response<SettleResponse>, Status> {
+        extract_parent_context(&request);
+
         let preimage = request.into_inner().payment_preimage;
         let payment_hash: sha256::Hash = Hash::hash(&preimage);
 
@@ -224,10 +272,13 @@ where
         Ok(Response::new(SettleResponse {}))
     }
 
+    #[instrument(name = "grpc::cancel", skip_all)]
     async fn cancel(
         &self,
         request: Request<CancelRequest>,
     ) -> Result<Response<CancelResponse>, Status> {
+        extract_parent_context(&request);
+
         if let Err(err) = self
             .settler
             .clone()
@@ -243,10 +294,13 @@ where
         Ok(Response::new(CancelResponse {}))
     }
 
+    #[instrument(name = "grpc::clean", skip_all)]
     async fn clean(
         &self,
         request: Request<CleanRequest>,
     ) -> Result<Response<CleanResponse>, Status> {
+        extract_parent_context(&request);
+
         let params = request.into_inner();
         match self.invoice_helper.clean_cancelled(params.age) {
             Ok(deleted) => Ok(Response::new(CleanResponse {
@@ -261,10 +315,13 @@ where
 
     type TrackStream = Pin<Box<dyn Stream<Item = Result<TrackResponse, Status>> + Send>>;
 
+    #[instrument(name = "grpc::track", skip_all)]
     async fn track(
         &self,
         request: Request<TrackRequest>,
     ) -> Result<Response<Self::TrackStream>, Status> {
+        extract_parent_context(&request);
+
         let params = request.into_inner();
         let (tx, rx) = mpsc::channel(16);
 
@@ -352,10 +409,13 @@ where
 
     type TrackAllStream = Pin<Box<dyn Stream<Item = Result<TrackAllResponse, Status>> + Send>>;
 
+    #[instrument(name = "grpc::track_all", skip_all)]
     async fn track_all(
         &self,
         request: Request<TrackAllRequest>,
     ) -> Result<Response<Self::TrackAllStream>, Status> {
+        extract_parent_context(&request);
+
         let params = request.into_inner();
 
         let (tx, rx) = mpsc::channel(128);
@@ -452,10 +512,13 @@ where
 
     type OnionMessagesStream = Pin<Box<dyn Stream<Item = Result<OnionMessage, Status>> + Send>>;
 
+    #[instrument(name = "grpc::onion_messages", skip_all)]
     async fn onion_messages(
         &self,
         response: Request<Streaming<OnionMessageResponse>>,
     ) -> Result<Response<Self::OnionMessagesStream>, Status> {
+        extract_parent_context(&response);
+
         let (tx, rx) = mpsc::channel(128);
         let mut onion_rx = self.messenger.subscribe();
 

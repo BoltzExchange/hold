@@ -1,5 +1,4 @@
 use crate::hooks::{OnionMessage, onion_message::OnionMessageResponse};
-use log::trace;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -7,6 +6,7 @@ use std::time::Duration;
 use std::time::SystemTime;
 use tokio::sync::broadcast;
 use tokio::sync::oneshot;
+use tracing::trace;
 
 const MESSAGE_TIMEOUT: u64 = 30;
 

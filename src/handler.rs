@@ -4,10 +4,10 @@ use crate::hooks::htlc_accepted::{FailureMessage, HtlcCallbackRequest, HtlcCallb
 use crate::invoice::Invoice;
 use crate::settler::{Resolver, Settler};
 use anyhow::Result;
-use log::{debug, error, info, warn};
 use std::str::FromStr;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use tracing::{debug, error, info, warn};
 
 const OVERPAYMENT_FACTOR: u64 = 2;
 

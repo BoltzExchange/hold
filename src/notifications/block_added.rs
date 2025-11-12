@@ -2,9 +2,9 @@ use crate::State;
 use crate::database::helpers::invoice_helper::InvoiceHelper;
 use crate::encoder::InvoiceEncoder;
 use cln_plugin::Plugin;
-use log::{debug, error};
 use serde::Deserialize;
 use serde_json::Value;
+use tracing::{debug, error};
 
 #[derive(Deserialize, Debug)]
 pub struct Block {

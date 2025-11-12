@@ -6,6 +6,7 @@ use bitcoin::hashes::{Hash, sha256};
 use cln_plugin::Plugin;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use tracing::instrument;
 
 #[derive(Debug, Deserialize)]
 struct SettleRequest {
@@ -27,6 +28,7 @@ impl FromArr for SettleRequest {
 #[derive(Debug, Serialize)]
 struct SettleResponse {}
 
+#[instrument(name = "cmd::settle", skip_all)]
 pub async fn settle<T, E>(plugin: Plugin<State<T, E>>, args: Value) -> anyhow::Result<Value>
 where
     T: InvoiceHelper + Sync + Send + Clone,
