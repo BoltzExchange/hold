@@ -12,6 +12,21 @@ use std::str::FromStr;
 use tokio_util::sync::CancellationToken;
 use tonic::transport::ServerTlsConfig;
 use tracing::info;
+#[cfg(feature = "otel")]
+use tracing_opentelemetry::OpenTelemetrySpanExt;
+
+#[cfg(feature = "otel")]
+struct HeaderExtractor<'a>(&'a axum::http::HeaderMap);
+
+#[cfg(feature = "otel")]
+impl<'a> opentelemetry::propagation::Extractor for HeaderExtractor<'a> {
+    fn get(&self, key: &str) -> Option<&str> {
+        self.0.get(key).and_then(|v| v.to_str().ok())
+    }
+    fn keys(&self) -> Vec<&str> {
+        self.0.keys().map(|k| k.as_str()).collect()
+    }
+}
 
 pub struct State<T, E> {
     pub our_id: [u8; 33],
@@ -78,7 +93,27 @@ where
         info!("Starting gRPC server on: {socket_addr}");
 
         let (identity, ca) = load_certificates(self.directory.clone())?;
-        let mut server = tonic::transport::Server::builder().tls_config(
+        let server = tonic::transport::Server::builder();
+
+        #[cfg(feature = "otel")]
+        let server = server.layer(
+            tower_http::trace::TraceLayer::new_for_grpc().make_span_with(
+                |req: &axum::http::Request<_>| {
+                    let parent_cx = opentelemetry::global::get_text_map_propagator(|prop| {
+                        prop.extract(&HeaderExtractor(req.headers()))
+                    });
+
+                    let span = tracing::info_span!("grpc_request");
+                    if let Err(e) = span.set_parent(parent_cx) {
+                        tracing::warn!("Failed to set parent span context: {:?}", e);
+                    }
+
+                    span
+                },
+            ),
+        );
+
+        let mut server = server.tls_config(
             ServerTlsConfig::new()
                 .identity(identity)
                 .client_ca_root(ca)

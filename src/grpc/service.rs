@@ -29,38 +29,6 @@ pub mod hold {
     tonic::include_proto!("hold");
 }
 
-#[cfg(feature = "otel")]
-struct MetadataMap<'a>(&'a tonic::metadata::MetadataMap);
-
-#[cfg(feature = "otel")]
-impl opentelemetry::propagation::Extractor for MetadataMap<'_> {
-    fn get(&self, key: &str) -> Option<&str> {
-        self.0.get(key).and_then(|metadata| metadata.to_str().ok())
-    }
-
-    fn keys(&self) -> Vec<&str> {
-        self.0
-            .keys()
-            .map(|key| match key {
-                tonic::metadata::KeyRef::Ascii(v) => v.as_str(),
-                tonic::metadata::KeyRef::Binary(v) => v.as_str(),
-            })
-            .collect::<Vec<_>>()
-    }
-}
-
-fn extract_parent_context<T>(request: &Request<T>) {
-    #[cfg(feature = "otel")]
-    {
-        use tracing_opentelemetry::OpenTelemetrySpanExt;
-
-        let parent_cx = opentelemetry::global::get_text_map_propagator(|prop| {
-            prop.extract(&MetadataMap(request.metadata()))
-        });
-        let _ = tracing::Span::current().set_parent(parent_cx);
-    }
-}
-
 pub struct HoldService<T, E> {
     our_id: [u8; 33],
     encoder: E,
@@ -100,10 +68,8 @@ where
     #[instrument(name = "grpc::get_info", skip_all)]
     async fn get_info(
         &self,
-        request: Request<GetInfoRequest>,
+        _: Request<GetInfoRequest>,
     ) -> Result<Response<GetInfoResponse>, Status> {
-        extract_parent_context(&request);
-
         Ok(Response::new(GetInfoResponse {
             version: crate::utils::built_info::PKG_VERSION.to_string(),
         }))
@@ -114,8 +80,6 @@ where
         &self,
         request: Request<InvoiceRequest>,
     ) -> Result<Response<InvoiceResponse>, Status> {
-        extract_parent_context(&request);
-
         let params = request.into_inner();
 
         let route_hints = match transform_route_hints(params.routing_hints) {
@@ -180,8 +144,6 @@ where
         &self,
         request: Request<InjectRequest>,
     ) -> Result<Response<InjectResponse>, Status> {
-        extract_parent_context(&request);
-
         let params = request.into_inner();
 
         let invoice = Invoice::from_str(&params.invoice)
@@ -215,8 +177,6 @@ where
 
     #[instrument(name = "grpc::list", skip_all)]
     async fn list(&self, request: Request<ListRequest>) -> Result<Response<ListResponse>, Status> {
-        extract_parent_context(&request);
-
         let params = request.into_inner();
         let invoices = match params.constraint {
             Some(constraint) => match constraint {
@@ -252,8 +212,6 @@ where
         &self,
         request: Request<SettleRequest>,
     ) -> Result<Response<SettleResponse>, Status> {
-        extract_parent_context(&request);
-
         let preimage = request.into_inner().payment_preimage;
         let payment_hash: sha256::Hash = Hash::hash(&preimage);
 
@@ -277,8 +235,6 @@ where
         &self,
         request: Request<CancelRequest>,
     ) -> Result<Response<CancelResponse>, Status> {
-        extract_parent_context(&request);
-
         if let Err(err) = self
             .settler
             .clone()
@@ -299,8 +255,6 @@ where
         &self,
         request: Request<CleanRequest>,
     ) -> Result<Response<CleanResponse>, Status> {
-        extract_parent_context(&request);
-
         let params = request.into_inner();
         match self.invoice_helper.clean_cancelled(params.age) {
             Ok(deleted) => Ok(Response::new(CleanResponse {
@@ -320,8 +274,6 @@ where
         &self,
         request: Request<TrackRequest>,
     ) -> Result<Response<Self::TrackStream>, Status> {
-        extract_parent_context(&request);
-
         let params = request.into_inner();
         let (tx, rx) = mpsc::channel(16);
 
@@ -414,8 +366,6 @@ where
         &self,
         request: Request<TrackAllRequest>,
     ) -> Result<Response<Self::TrackAllStream>, Status> {
-        extract_parent_context(&request);
-
         let params = request.into_inner();
 
         let (tx, rx) = mpsc::channel(128);
@@ -517,8 +467,6 @@ where
         &self,
         response: Request<Streaming<OnionMessageResponse>>,
     ) -> Result<Response<Self::OnionMessagesStream>, Status> {
-        extract_parent_context(&response);
-
         let (tx, rx) = mpsc::channel(128);
         let mut onion_rx = self.messenger.subscribe();
 
