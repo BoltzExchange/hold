@@ -26,12 +26,12 @@ where
         };
 
         if !cancel.is_disabled() {
-            log::info!(
+            tracing::info!(
                 "Cancelling invoices when they are {} blocks from expiration",
                 cancel.deadline
             );
         } else {
-            log::warn!("Not cancelling invoices close to expiration");
+            tracing::warn!("Not cancelling invoices close to expiration");
         }
 
         cancel
@@ -49,7 +49,7 @@ where
             if block_height > *best_height {
                 *best_height = block_height;
             } else {
-                log::warn!(
+                tracing::warn!(
                     "Added block height {} is less than best height {}",
                     block_height,
                     *best_height
@@ -60,21 +60,21 @@ where
 
         for (payment_hash, expiry) in self.settler.get_expiries().await {
             let blocks_until_expiry = expiry - block_height;
-            log::debug!(
+            tracing::debug!(
                 "Invoice {} has expiry in {} blocks",
                 hex::encode(&payment_hash),
                 blocks_until_expiry
             );
 
             if blocks_until_expiry <= self.deadline {
-                log::warn!(
+                tracing::warn!(
                     "Cancelling invoice {} because its shortest expiry is in {} blocks (deadline is {})",
                     hex::encode(&payment_hash),
                     blocks_until_expiry,
                     self.deadline
                 );
                 if let Err(e) = self.settler.cancel(&payment_hash).await {
-                    log::error!(
+                    tracing::error!(
                         "Could not cancel invoice {}: {e}",
                         hex::encode(&payment_hash)
                     );

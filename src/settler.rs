@@ -2,7 +2,6 @@ use crate::database::helpers::invoice_helper::InvoiceHelper;
 use crate::database::model::{HoldInvoice, Invoice, InvoiceState};
 use crate::hooks::htlc_accepted::{FailureMessage, HtlcCallbackResponse};
 use anyhow::Result;
-use log::{info, trace, warn};
 use std::collections::HashMap;
 use std::error::Error;
 use std::fmt::{Display, Formatter};
@@ -11,6 +10,7 @@ use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 use tokio::sync::{Mutex, broadcast, oneshot};
 use tokio::time;
+use tracing::{info, trace, warn};
 
 const MPP_INTERVAL_SECONDS: u64 = 15;
 

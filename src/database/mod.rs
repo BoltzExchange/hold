@@ -3,9 +3,9 @@ use diesel::prelude::*;
 use diesel::r2d2::ConnectionManager;
 use diesel::{PgConnection, SqliteConnection, r2d2};
 use diesel_migrations::{EmbeddedMigrations, MigrationHarness, embed_migrations};
-use log::{debug, info, trace};
 use std::error::Error;
 use std::time::Duration;
+use tracing::{debug, info, trace};
 
 pub mod helpers;
 pub mod model;

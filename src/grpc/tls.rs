@@ -1,5 +1,4 @@
 use anyhow::Result;
-use log::{debug, trace};
 use rcgen::{CertificateParams, Issuer, KeyPair};
 use std::fs;
 use std::fs::File;
@@ -7,6 +6,7 @@ use std::io::Write;
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use tonic::transport::{Certificate, Identity};
+use tracing::{debug, trace};
 
 pub fn load_certificates(base_path: PathBuf) -> Result<(Identity, Certificate)> {
     debug!("Loading gRPC certificates from: {base_path:?}");

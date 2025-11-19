@@ -11,6 +11,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
 use tonic::async_trait;
+use tracing::instrument;
 
 const DEFAULT_MIN_FINAL_CLTV_EXPIRY_DELTA: u64 = 80;
 
@@ -119,10 +120,23 @@ impl Encoder {
             _ => Err(NetworkError::InvalidNetwork.into()),
         }
     }
+
+    #[instrument(name = "encoder::sign_invoice_rpc", skip_all)]
+    async fn sign_invoice_rpc(&self, invstring: String) -> Result<String> {
+        let signed = self
+            .rpc
+            .lock()
+            .await
+            .call_typed(&SigninvoiceRequest { invstring })
+            .await?;
+
+        Ok(signed.bolt11)
+    }
 }
 
 #[async_trait]
 impl InvoiceEncoder for Encoder {
+    #[instrument(name = "encoder::encode", skip_all)]
     async fn encode(&self, invoice_builder: InvoiceBuilder) -> Result<String> {
         let payment_hash: sha256::Hash = Hash::from_slice(&invoice_builder.payment_hash)?;
         let payment_secret = PaymentSecret(match invoice_builder.payment_secret {
@@ -178,15 +192,6 @@ impl InvoiceEncoder for Encoder {
         let invoice = builder
             .build_signed(|hash| Secp256k1::new().sign_ecdsa_recoverable(hash, &self.secret_key))?;
 
-        let signed = self
-            .rpc
-            .lock()
-            .await
-            .call_typed(&SigninvoiceRequest {
-                invstring: invoice.to_string(),
-            })
-            .await?;
-
-        Ok(signed.bolt11)
+        self.sign_invoice_rpc(invoice.to_string()).await
     }
 }

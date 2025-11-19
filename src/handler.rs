@@ -4,10 +4,10 @@ use crate::hooks::htlc_accepted::{FailureMessage, HtlcCallbackRequest, HtlcCallb
 use crate::invoice::Invoice;
 use crate::settler::{Resolver, Settler};
 use anyhow::Result;
-use log::{debug, error, info, warn};
 use std::str::FromStr;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use tracing::{debug, error, info, warn};
 
 const OVERPAYMENT_FACTOR: u64 = 2;
 
@@ -204,7 +204,7 @@ where
             state: state.to_string(),
             scid: args.htlc.short_channel_id.clone(),
             channel_id: args.htlc.id as i64,
-            cltv_expiry: args.htlc.cltv_expiry as i64,
+            cltv_expiry: args.htlc.cltv_expiry as i32,
             msat: args.htlc.amount_msat as i64,
         }
     }

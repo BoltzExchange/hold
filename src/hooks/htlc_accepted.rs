@@ -4,9 +4,9 @@ use crate::encoder::InvoiceEncoder;
 use crate::handler::Resolution;
 use anyhow::Result;
 use cln_plugin::Plugin;
-use log::error;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use tracing::error;
 
 #[derive(Debug, Deserialize)]
 pub struct HtlcCallbackRequest {

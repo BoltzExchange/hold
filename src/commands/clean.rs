@@ -5,6 +5,7 @@ use crate::encoder::InvoiceEncoder;
 use cln_plugin::Plugin;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use tracing::instrument;
 
 #[derive(Debug, Deserialize)]
 struct CleanRequest {
@@ -31,6 +32,7 @@ struct CleanResponse {
     pub cleaned: usize,
 }
 
+#[instrument(name = "cmd::clean", skip_all)]
 pub async fn clean<T, E>(plugin: Plugin<State<T, E>>, args: Value) -> anyhow::Result<Value>
 where
     T: InvoiceHelper + Sync + Send + Clone,

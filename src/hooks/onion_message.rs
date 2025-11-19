@@ -3,10 +3,10 @@ use crate::database::helpers::invoice_helper::InvoiceHelper;
 use crate::encoder::InvoiceEncoder;
 use anyhow::Result;
 use cln_plugin::Plugin;
-use log::error;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::hash::{DefaultHasher, Hash, Hasher};
+use tracing::error;
 
 #[derive(Clone, Debug, Hash, Deserialize)]
 pub struct BlindedPathHops {

@@ -9,6 +9,7 @@ use cln_plugin::Plugin;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::str::FromStr;
+use tracing::instrument;
 
 #[derive(Debug, Deserialize)]
 struct InjectInvoiceRequest {
@@ -36,6 +37,7 @@ impl FromArr for InjectInvoiceRequest {
 #[derive(Debug, Serialize)]
 struct InjectInvoiceResponse {}
 
+#[instrument(name = "cmd::inject_invoice", skip_all)]
 pub async fn inject_invoice<T, E>(plugin: Plugin<State<T, E>>, args: Value) -> anyhow::Result<Value>
 where
     T: InvoiceHelper + Sync + Send + Clone,

@@ -13,6 +13,7 @@ use diesel::{
 };
 use diesel::{QueryDsl, RunQueryDsl, SelectableHelper};
 use std::ops::Sub;
+use tracing::instrument;
 
 pub trait InvoiceHelper {
     fn insert(&self, invoice: &InvoiceInsertable) -> Result<usize>;
@@ -82,18 +83,21 @@ impl InvoiceHelperDatabase {
 }
 
 impl InvoiceHelper for InvoiceHelperDatabase {
+    #[instrument(name = "db::insert", skip_all)]
     fn insert(&self, invoice: &InvoiceInsertable) -> Result<usize> {
         Ok(insert_into(invoices::dsl::invoices)
             .values(invoice)
             .execute(&mut self.pool.get()?)?)
     }
 
+    #[instrument(name = "db::insert_htlc", skip_all)]
     fn insert_htlc(&self, htlc: &HtlcInsertable) -> Result<usize> {
         Ok(insert_into(htlcs::dsl::htlcs)
             .values(htlc)
             .execute(&mut self.pool.get()?)?)
     }
 
+    #[instrument(name = "db::set_invoice_state", skip_all)]
     fn set_invoice_state(
         &self,
         id: i64,
@@ -103,6 +107,7 @@ impl InvoiceHelper for InvoiceHelperDatabase {
         Self::set_invoice_state(&mut self.pool.get()?, id, state, new_state)
     }
 
+    #[instrument(name = "db::set_invoice_settled", skip_all)]
     fn set_invoice_settled(&self, payment_hash: &[u8], preimage: &[u8]) -> Result<()> {
         let mut con = self.pool.get()?;
         con.transaction(|tx| {
@@ -135,6 +140,7 @@ impl InvoiceHelper for InvoiceHelperDatabase {
         })
     }
 
+    #[instrument(name = "db::set_htlc_state_by_id", skip_all)]
     fn set_htlc_state_by_id(
         &self,
         htlc_id: i64,
@@ -149,6 +155,7 @@ impl InvoiceHelper for InvoiceHelperDatabase {
             .execute(&mut self.pool.get()?)?)
     }
 
+    #[instrument(name = "db::set_htlc_states_by_invoice", skip_all)]
     fn set_htlc_states_by_invoice(
         &self,
         invoice_id: i64,
@@ -163,6 +170,7 @@ impl InvoiceHelper for InvoiceHelperDatabase {
             .execute(&mut self.pool.get()?)?)
     }
 
+    #[instrument(name = "db::clean_cancelled", skip_all)]
     fn clean_cancelled(&self, age: Option<u64>) -> Result<usize> {
         let age = match TimeDelta::new(age.unwrap_or(0) as i64, 0) {
             Some(age) => age,
@@ -192,6 +200,7 @@ impl InvoiceHelper for InvoiceHelperDatabase {
         })
     }
 
+    #[instrument(name = "db::get_all", skip_all)]
     fn get_all(&self) -> Result<Vec<HoldInvoice>> {
         let mut con = self.pool.get()?;
 
@@ -211,6 +220,7 @@ impl InvoiceHelper for InvoiceHelperDatabase {
             .collect())
     }
 
+    #[instrument(name = "db::get_paginated", skip_all)]
     fn get_paginated(&self, index_start: i64, limit: u64) -> Result<Vec<HoldInvoice>> {
         let mut con = self.pool.get()?;
 
@@ -232,6 +242,7 @@ impl InvoiceHelper for InvoiceHelperDatabase {
             .collect())
     }
 
+    #[instrument(name = "db::get_by_payment_hash", skip_all)]
     fn get_by_payment_hash(&self, payment_hash: &[u8]) -> Result<Option<HoldInvoice>> {
         let mut con = self.pool.get()?;
 

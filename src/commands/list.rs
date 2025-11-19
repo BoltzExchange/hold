@@ -8,6 +8,7 @@ use cln_plugin::Plugin;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::str::FromStr;
+use tracing::instrument;
 
 #[derive(Debug, Deserialize)]
 struct ListInvoicesRequest {
@@ -72,6 +73,7 @@ struct ListInvoicesResponse {
     holdinvoices: Vec<PrettyHoldInvoice>,
 }
 
+#[instrument(name = "cmd::list_invoices", skip_all)]
 pub async fn list_invoices<T, E>(plugin: Plugin<State<T, E>>, args: Value) -> anyhow::Result<Value>
 where
     T: InvoiceHelper + Sync + Send + Clone,

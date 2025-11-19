@@ -5,6 +5,7 @@ use crate::encoder::InvoiceEncoder;
 use cln_plugin::Plugin;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use tracing::instrument;
 
 #[derive(Debug, Deserialize)]
 struct CancelRequest {
@@ -26,6 +27,7 @@ impl FromArr for CancelRequest {
 #[derive(Debug, Serialize)]
 struct CancelResponse {}
 
+#[instrument(name = "cmd::cancel", skip_all)]
 pub async fn cancel<T, E>(plugin: Plugin<State<T, E>>, args: Value) -> anyhow::Result<Value>
 where
     T: InvoiceHelper + Sync + Send + Clone,
