@@ -19,7 +19,7 @@ diesel::table! {
         scid -> Text,
         channel_id -> BigInt,
         msat -> BigInt,
-        cltv_expiry -> Nullable<BigInt>,
+        cltv_expiry -> Nullable<Integer>,
         created_at -> Timestamp,
     }
 }

@@ -204,7 +204,7 @@ where
             state: state.to_string(),
             scid: args.htlc.short_channel_id.clone(),
             channel_id: args.htlc.id as i64,
-            cltv_expiry: args.htlc.cltv_expiry as i64,
+            cltv_expiry: args.htlc.cltv_expiry as i32,
             msat: args.htlc.amount_msat as i64,
         }
     }

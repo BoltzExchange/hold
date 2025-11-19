@@ -47,7 +47,7 @@ pub struct Htlc {
     pub scid: String,
     pub channel_id: i64,
     pub msat: i64,
-    pub cltv_expiry: Option<i64>,
+    pub cltv_expiry: Option<i32>,
     pub created_at: chrono::NaiveDateTime,
 }
 
@@ -58,7 +58,7 @@ pub struct HtlcInsertable {
     pub state: String,
     pub scid: String,
     pub channel_id: i64,
-    pub cltv_expiry: i64,
+    pub cltv_expiry: i32,
     pub msat: i64,
 }
 
