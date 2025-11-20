@@ -9,6 +9,8 @@ repository = "https://github.com/BoltzExchange/hold"
 [features]
 default = ["otel"]
 otel = [
+    "dep:axum",
+    "dep:tower-http",
     "dep:opentelemetry",
     "dep:opentelemetry_sdk",
     "dep:tracing-subscriber",
@@ -66,6 +68,8 @@ tracing = { version = "0.1.41" }
 tracing-subscriber = { version = "0.3.20", optional = true, features = [
     "env-filter",
 ] }
+axum = { version = "0.8.7", optional = true, default-features = false }
+tower-http = { version = "0.6.6", features = ["trace"], optional = true }
 
 [build-dependencies]
 built = { version = "0.8.0", features = ["git2"] }
