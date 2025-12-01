@@ -3,6 +3,28 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 ---
+## [0.3.3](https://github.com/BoltzExchange/hold/compare/v0.3.2..v0.3.3) - 2025-12-01
+
+### Bug Fixes
+
+- PostgreSQL cltv_expiry - ([07f147a](https://github.com/BoltzExchange/hold/commit/07f147aa80a547c74c382f0b4664d262987ac41d))
+- parent propagation of OTEL spans (#27) - ([ec794a9](https://github.com/BoltzExchange/hold/commit/ec794a9500ec732efa85e65ed896ea8db16eb67f))
+
+### Features
+
+- add CLTV expiry field to HTLCs (#25) - ([1e5dec4](https://github.com/BoltzExchange/hold/commit/1e5dec4b479397d77c813060dd01263d689469bc))
+- OTEL tracing - ([1cbd561](https://github.com/BoltzExchange/hold/commit/1cbd5617ac8ce4dd4964fef59df9af8fdfd55631))
+
+### Miscellaneous Chores
+
+- document hold-expiry-deadline - ([b7bc676](https://github.com/BoltzExchange/hold/commit/b7bc676c74554a27e740db408408048fff972ba5))
+- bump dependencies - ([da7f0a3](https://github.com/BoltzExchange/hold/commit/da7f0a3f899d1470a2cd22a6bea64391a8ccb4e9))
+- bump Python dependencies - ([6691324](https://github.com/BoltzExchange/hold/commit/6691324d2d681598178e0592de4082b1f246d36b))
+- bump regtest (#24) - ([daa0722](https://github.com/BoltzExchange/hold/commit/daa07229e06c4b3f5c2c2fab12606d3975ba0e55))
+- bump dependencies - ([37c861a](https://github.com/BoltzExchange/hold/commit/37c861aae99810e75f6fc80de89b1ecb9a117edc))
+- bump dependencies - ([d888ccb](https://github.com/BoltzExchange/hold/commit/d888ccbda4b87437edb23fdb21b5ae7ca3707b71))
+
+---
 ## [0.3.2](https://github.com/BoltzExchange/hold/compare/v0.3.1..v0.3.2) - 2025-07-02
 
 ### Features
@@ -13,6 +35,7 @@ All notable changes to this project will be documented in this file. See [conven
 
 - bump changelog for v0.3.1 - ([a4790e9](https://github.com/BoltzExchange/hold/commit/a4790e9f981fe465590ebc7be2c56493e6dcb3d0))
 - update regtest (#20) - ([b30003f](https://github.com/BoltzExchange/hold/commit/b30003ffae4db7441da9a5cfb278275f0480f390))
+- bump version to v0.3.2 - ([128728d](https://github.com/BoltzExchange/hold/commit/128728d6909a04d01901810b718286991c119174))
 
 ---
 ## [0.3.1](https://github.com/BoltzExchange/hold/compare/v0.3.0..v0.3.1) - 2025-05-23
