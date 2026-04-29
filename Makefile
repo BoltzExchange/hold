@@ -4,6 +4,9 @@ build:
 build-release:
 	cargo build --release
 
+clippy:
+	cargo clippy --all-targets --all-features -- -D warnings
+
 python-install:
 	cd tests-regtest && uv sync
 
