@@ -159,15 +159,13 @@ impl InvoiceState {
         }
 
         match *self {
-            InvoiceState::Unpaid => {
-                if new_state != InvoiceState::Accepted && new_state != InvoiceState::Cancelled {
-                    return Err(StateTransitionError::InvalidTransition(*self, new_state));
-                }
+            InvoiceState::Unpaid
+                if new_state != InvoiceState::Accepted && new_state != InvoiceState::Cancelled =>
+            {
+                return Err(StateTransitionError::InvalidTransition(*self, new_state));
             }
-            InvoiceState::Accepted => {
-                if new_state == InvoiceState::Unpaid {
-                    return Err(StateTransitionError::InvalidTransition(*self, new_state));
-                }
+            InvoiceState::Accepted if new_state == InvoiceState::Unpaid => {
+                return Err(StateTransitionError::InvalidTransition(*self, new_state));
             }
             _ => {}
         };
